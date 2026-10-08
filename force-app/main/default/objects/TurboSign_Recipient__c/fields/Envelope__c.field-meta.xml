@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+  <fullName>Envelope__c</fullName>
+  <label>Envelope</label>
+  <type>MasterDetail</type>
+  <referenceTo>TurboSign_Envelope__c</referenceTo>
+  <relationshipLabel>TurboSign_Recipients</relationshipLabel>
+  <relationshipName>TurboSign_Recipients</relationshipName>
+  <reparentableMasterDetail>false</reparentableMasterDetail>
+  <writeRequiresMasterRead>false</writeRequiresMasterRead>
+</CustomField>

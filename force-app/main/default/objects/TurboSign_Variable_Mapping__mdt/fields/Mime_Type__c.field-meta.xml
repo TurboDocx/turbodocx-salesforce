@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+  <fullName>Mime_Type__c</fullName>
+  <externalId>false</externalId>
+  <fieldManageability>DeveloperControlled</fieldManageability>
+  <label>Mime Type</label>
+  <type>Picklist</type>
+  <valueSet>
+    <valueSetDefinition>
+      <sorted>false</sorted>
+      <value>
+        <fullName>text</fullName>
+        <default>false</default>
+        <label>text</label>
+      </value>
+      <value>
+        <fullName>html</fullName>
+        <default>false</default>
+        <label>html</label>
+      </value>
+      <value>
+        <fullName>markdown</fullName>
+        <default>false</default>
+        <label>markdown</label>
+      </value>
+      <value>
+        <fullName>image</fullName>
+        <default>false</default>
+        <label>image</label>
+      </value>
+    </valueSetDefinition>
+  </valueSet>
+</CustomField>

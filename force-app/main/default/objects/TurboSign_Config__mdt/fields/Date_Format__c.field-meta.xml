@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+  <fullName>Date_Format__c</fullName>
+  <externalId>false</externalId>
+  <fieldManageability>DeveloperControlled</fieldManageability>
+  <label>Date Format</label>
+  <description>Optional Apex/Java date pattern (e.g. "MMMM d, yyyy", "dd/MM/yyyy") applied to date and datetime fields in this document. Leave blank to use the signer's native Salesforce locale format.</description>
+  <inlineHelpText>Blank = native locale date (e.g. 9/15/2026). Set a pattern like MMMM d, yyyy for "September 15, 2026".</inlineHelpText>
+  <type>Text</type>
+  <length>40</length>
+</CustomField>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+  <fullName>Reminders_Sent__c</fullName>
+  <label>Reminders Sent</label>
+  <type>Summary</type>
+  <summaryForeignKey>TurboSign_Event__c.Envelope__c</summaryForeignKey>
+  <summaryOperation>Count</summaryOperation>
+  <summaryFilterItems>
+    <field>TurboSign_Event__c.Event_Type__c</field>
+    <operation>equals</operation>
+    <value>reminder_sent</value>
+  </summaryFilterItems>
+</CustomField>

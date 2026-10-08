@@ -1,0 +1,18 @@
+{
+  "packageDirectories": [
+    {
+      "path": "force-app",
+      "default": true,
+      "package": "TurboSign for Salesforce",
+      "versionName": "ver 1.0",
+      "versionNumber": "1.0.0.NEXT",
+      "unpackagedMetadata": {
+        "path": "unpackaged"
+      }
+    }
+  ],
+  "name": "turbodocx-salesforce",
+  "namespace": "",
+  "sfdcLoginUrl": "https://login.salesforce.com",
+  "sourceApiVersion": "62.0"
+}

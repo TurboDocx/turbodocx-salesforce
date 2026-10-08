@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+  <fullName>Days_Outstanding__c</fullName>
+  <label>Days Outstanding</label>
+  <type>Number</type>
+  <formula>IF(ISPICKVAL(Status__c,'completed') || ISPICKVAL(Status__c,'voided') || ISPICKVAL(Status__c,'expired') || ISBLANK(Sent_On__c), null, (NOW() - Sent_On__c))</formula>
+  <formulaTreatBlanksAs>BlankAsBlank</formulaTreatBlanksAs>
+  <precision>18</precision>
+  <scale>2</scale>
+</CustomField>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+  <fullName>Days_To_Expiry__c</fullName>
+  <label>Days To Expiry</label>
+  <type>Number</type>
+  <formula>IF(ISBLANK(Expires_At__c), null, (Expires_At__c - NOW()))</formula>
+  <formulaTreatBlanksAs>BlankAsBlank</formulaTreatBlanksAs>
+  <precision>18</precision>
+  <scale>2</scale>
+</CustomField>

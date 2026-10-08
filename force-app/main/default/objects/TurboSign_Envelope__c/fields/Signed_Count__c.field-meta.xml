@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+  <fullName>Signed_Count__c</fullName>
+  <label>Signed Count</label>
+  <type>Summary</type>
+  <summaryForeignKey>TurboSign_Recipient__c.Envelope__c</summaryForeignKey>
+  <summaryOperation>Count</summaryOperation>
+  <summaryFilterItems>
+    <field>TurboSign_Recipient__c.Effective_Status__c</field>
+    <operation>equals</operation>
+    <value>completed</value>
+  </summaryFilterItems>
+</CustomField>

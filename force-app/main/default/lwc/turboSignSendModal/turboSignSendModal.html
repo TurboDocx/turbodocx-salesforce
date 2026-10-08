@@ -1,0 +1,146 @@
+<template>
+    <div class="slds-var-p-around_medium">
+
+        <!-- Loading configs -->
+        <template lwc:if={loadingConfigs}>
+            <div class="slds-align_absolute-center slds-var-p-vertical_large">
+                <lightning-spinner alternative-text="Loading signature setups" size="small"></lightning-spinner>
+            </div>
+        </template>
+
+        <template lwc:else>
+            <!-- ============ STEP 1: PICK ============ -->
+            <template lwc:if={isPick}>
+                <template lwc:if={loadError}>
+                    <div class="slds-text-color_error slds-var-p-vertical_small">{loadError}</div>
+                </template>
+
+                <template lwc:if={hasConfigs}>
+                    <p class="slds-text-body_regular slds-var-m-bottom_small">Choose which document to send:</p>
+                    <lightning-combobox label="Document" value={configDeveloperName} placeholder="Select a document"
+                        options={configOptions} onchange={handleConfigChange} required></lightning-combobox>
+                    <template lwc:if={prepareError}>
+                        <div class="slds-text-color_error slds-text-body_small slds-var-m-top_x-small">{prepareError}</div>
+                    </template>
+                </template>
+                <template lwc:else>
+                    <div class="slds-var-p-vertical_medium slds-text-align_center">
+                        <p class="slds-text-heading_small">No document setups yet</p>
+                        <p class="slds-text-body_small slds-text-color_weak slds-var-m-top_xx-small">
+                            An admin can create one on the <strong>TurboSign Setup</strong> tab, then it appears here.
+                        </p>
+                    </div>
+                </template>
+
+                <div class="slds-var-m-top_medium slds-text-align_right">
+                    <lightning-button label="Cancel" onclick={handleCancel} class="slds-var-m-right_x-small"></lightning-button>
+                    <template lwc:if={hasConfigs}>
+                        <lightning-button variant="brand" label="Review" onclick={handleReview} disabled={reviewDisabled}></lightning-button>
+                    </template>
+                </div>
+            </template>
+
+            <!-- ============ STEP 2: REVIEW ============ -->
+            <template lwc:if={isReview}>
+                <template lwc:if={preparing}>
+                    <div class="slds-align_absolute-center slds-var-p-vertical_large">
+                        <lightning-spinner alternative-text="Preparing your document" size="small"></lightning-spinner>
+                    </div>
+                </template>
+
+                <template lwc:else>
+                    <p class="slds-text-body_regular slds-var-m-bottom_medium">{intentLine}</p>
+
+                    <!-- Fields: prefilled from the record, all editable (like the /generate variables view) -->
+                    <template lwc:if={hasFields}>
+                        <template for:each={fields} for:item="f">
+                            <div key={f.placeholder} class="slds-var-m-bottom_small">
+                                <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-var-m-bottom_xxx-small">
+                                    <span class="slds-form-element__label slds-var-m-bottom_none">{f.label}</span>
+                                    <span class="slds-text-body_small slds-text-color_weak" title="Where this value comes from">{f.sourceLabel}</span>
+                                </div>
+                                <template lwc:if={f.isLong}>
+                                    <lightning-textarea variant="label-hidden" label={f.label} value={f.value}
+                                        data-placeholder={f.placeholder} onchange={handleFieldEdit}></lightning-textarea>
+                                </template>
+                                <template lwc:else>
+                                    <lightning-input variant="label-hidden" label={f.label} value={f.value}
+                                        data-placeholder={f.placeholder} onchange={handleFieldEdit}></lightning-input>
+                                </template>
+                            </div>
+                        </template>
+                    </template>
+
+                    <!-- Signature spots QA — quiet when healthy, loud when broken -->
+                    <div class="slds-var-m-top_medium slds-var-p-top_medium slds-border_top">
+                        <template lwc:if={anchorsAllFound}>
+                            <div class="slds-text-color_success slds-text-body_small">
+                                <lightning-icon icon-name="utility:success" size="xx-small" variant="success" class="slds-var-m-right_xx-small"></lightning-icon>
+                                All signature spots found in the document.
+                            </div>
+                        </template>
+                        <template lwc:elseif={missingAnchors.length}>
+                            <div class="slds-scoped-notification slds-media slds-media_center slds-theme_warning" role="status">
+                                <div class="slds-media__figure">
+                                    <lightning-icon icon-name="utility:warning" size="small"></lightning-icon>
+                                </div>
+                                <div class="slds-media__body">
+                                    <p class="slds-text-body_small">
+                                        <template for:each={missingAnchors} for:item="m">
+                                            <span key={m.anchor}>No <strong>{m.anchor}</strong> spot for {m.role} in the document. </span>
+                                        </template>
+                                        The signer won't have a place to sign. You can still send, or fix the template.
+                                    </p>
+                                </div>
+                            </div>
+                        </template>
+                        <template lwc:else>
+                            <!-- not yet verified against the document -->
+                            <p class="slds-form-element__label slds-var-m-bottom_xx-small">Signature spots</p>
+                            <template for:each={anchorList} for:item="a">
+                                <div key={a.key} class="slds-text-body_small slds-text-color_weak slds-var-p-vertical_xxx-small">
+                                    {a.anchor} — {a.desc}
+                                </div>
+                            </template>
+                        </template>
+                    </div>
+
+                    <!-- Signers: editable, prefilled, each showing where it came from -->
+                    <template lwc:if={hasSigners}>
+                        <div class="slds-var-m-top_medium">
+                            <p class="slds-form-element__label slds-var-m-bottom_x-small">Signers</p>
+                            <template for:each={signers} for:item="s">
+                                <div key={s.key} class="slds-box slds-box_x-small slds-var-m-bottom_x-small">
+                                    <p class="slds-text-body_small slds-text-color_weak slds-var-m-bottom_x-small">{s.heading}</p>
+                                    <div class="slds-grid slds-gutters_x-small slds-wrap">
+                                        <div class="slds-col slds-size_1-of-2">
+                                            <div class="slds-grid slds-grid_align-spread slds-var-m-bottom_xxx-small">
+                                                <span class="slds-form-element__label slds-var-m-bottom_none">Name</span>
+                                                <span class="slds-text-body_small slds-text-color_weak">{s.nameSourceLabel}</span>
+                                            </div>
+                                            <lightning-input variant="label-hidden" label="Signer name" value={s.name}
+                                                data-key={s.key} data-field="name" onchange={handleSignerEdit}></lightning-input>
+                                        </div>
+                                        <div class="slds-col slds-size_1-of-2">
+                                            <div class="slds-grid slds-grid_align-spread slds-var-m-bottom_xxx-small">
+                                                <span class="slds-form-element__label slds-var-m-bottom_none">Email</span>
+                                                <span class="slds-text-body_small slds-text-color_weak">{s.emailSourceLabel}</span>
+                                            </div>
+                                            <lightning-input variant="label-hidden" type="email" label="Signer email" value={s.email}
+                                                data-key={s.key} data-field="email" onchange={handleSignerEdit}></lightning-input>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+
+                    <div class="slds-var-m-top_medium slds-text-align_right">
+                        <lightning-button label="Back" onclick={handleBack} class="slds-var-m-right_x-small" disabled={sending}></lightning-button>
+                        <lightning-button variant="brand" label="Send" onclick={handleSend} disabled={sending}></lightning-button>
+                    </div>
+                </template>
+            </template>
+        </template>
+    </div>
+</template>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+  <fullName>Completion_Field__c</fullName>
+  <externalId>false</externalId>
+  <fieldManageability>DeveloperControlled</fieldManageability>
+  <label>Completion Field</label>
+  <inlineHelpText>API name of a field on the source object to set when signing completes (for example StageName). Leave blank for no status advancement.</inlineHelpText>
+  <type>Text</type>
+  <length>255</length>
+</CustomField>

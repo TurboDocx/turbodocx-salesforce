@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+  <fullName>Mirror_Events_To__c</fullName>
+  <externalId>false</externalId>
+  <fieldManageability>DeveloperControlled</fieldManageability>
+  <label>Mirror Events To</label>
+  <type>Picklist</type>
+  <valueSet>
+    <valueSetDefinition>
+      <sorted>false</sorted>
+      <value>
+        <fullName>None</fullName>
+        <default>false</default>
+        <label>None</label>
+      </value>
+      <value>
+        <fullName>Chatter</fullName>
+        <default>true</default>
+        <label>Chatter</label>
+      </value>
+      <value>
+        <fullName>Task</fullName>
+        <default>false</default>
+        <label>Task</label>
+      </value>
+    </valueSetDefinition>
+  </valueSet>
+</CustomField>

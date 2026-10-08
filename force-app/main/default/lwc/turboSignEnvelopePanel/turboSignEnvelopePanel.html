@@ -1,0 +1,89 @@
+<template>
+    <lightning-card title="TurboSign Signatures" icon-name="standard:contract">
+        <lightning-button-icon slot="actions" icon-name="utility:refresh" alternative-text="Refresh"
+            title="Refresh" onclick={handleRefresh} disabled={loading}></lightning-button-icon>
+
+        <div class="slds-var-p-horizontal_small slds-var-p-bottom_small">
+            <!-- Loading -->
+            <template lwc:if={loading}>
+                <div class="slds-align_absolute-center slds-var-p-vertical_large">
+                    <lightning-spinner alternative-text="Loading signatures" size="small"></lightning-spinner>
+                </div>
+            </template>
+
+            <!-- Error -->
+            <template lwc:elseif={loadError}>
+                <div class="slds-var-p-vertical_small">
+                    <lightning-icon icon-name="utility:error" variant="error" size="x-small"
+                        class="slds-var-m-right_xx-small"></lightning-icon>
+                    <span class="slds-text-color_error">{loadError}</span>
+                    <div class="slds-var-m-top_x-small">
+                        <lightning-button label="Try again" onclick={handleRefresh}></lightning-button>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Envelopes -->
+            <template lwc:elseif={hasEnvelopes}>
+                <template for:each={envelopes} for:item="e">
+                    <div key={e.Id} class="slds-box slds-box_x-small slds-var-m-bottom_x-small">
+                        <div class="slds-grid slds-grid_align-spread slds-var-m-bottom_xx-small">
+                            <span class="slds-text-heading_small slds-truncate" title={e.Document_Name__c}>{e.Document_Name__c}</span>
+                            <lightning-badge label={e.Status__c} variant={e.statusVariant}></lightning-badge>
+                        </div>
+                        <p class="slds-text-body_small slds-text-color_weak">{e.progress}</p>
+                        <div class="slds-var-m-top_x-small">
+                            <template lwc:if={e.Preview_Url__c}>
+                                <a href={e.Preview_Url__c} target="_blank" rel="noopener"
+                                    class="slds-var-m-right_small">Open in TurboDocx</a>
+                            </template>
+                            <lightning-button label="Remind" data-id={e.Id} onclick={handleRemind}
+                                variant="brand-outline" class="slds-var-m-right_x-small"></lightning-button>
+                            <lightning-button label="Void" data-id={e.Id} onclick={openVoid}
+                                variant="destructive-text"></lightning-button>
+                        </div>
+                    </div>
+                </template>
+            </template>
+
+            <!-- Empty: invite action -->
+            <template lwc:elseif={showEmpty}>
+                <div class="slds-var-p-vertical_medium slds-text-align_center">
+                    <lightning-icon icon-name="standard:contract" size="small"></lightning-icon>
+                    <p class="slds-text-heading_small slds-var-m-top_x-small">No signatures yet</p>
+                    <p class="slds-text-body_small slds-text-color_weak slds-var-m-top_xx-small">
+                        Use <strong>Send for Signature</strong> above to send this record to signers.
+                    </p>
+                </div>
+            </template>
+        </div>
+    </lightning-card>
+
+    <!-- Void confirmation modal -->
+    <template lwc:if={voidModalOpen}>
+        <section role="dialog" tabindex="-1" aria-modal="true" aria-labelledby="voidHeading" class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container">
+                <header class="slds-modal__header">
+                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                        title="Close" onclick={closeVoid}>
+                        <lightning-icon icon-name="utility:close" size="small" variant="inverse"></lightning-icon>
+                    </button>
+                    <h2 id="voidHeading" class="slds-modal__title slds-hyphenate">Void this signature request?</h2>
+                </header>
+                <div class="slds-modal__content slds-var-p-around_medium">
+                    <p class="slds-var-m-bottom_small slds-text-body_small slds-text-color_weak">
+                        Voiding cancels the request for everyone. Signers can no longer sign. This can't be undone.
+                    </p>
+                    <lightning-textarea label="Reason" value={voidReason} onchange={handleVoidReason}
+                        placeholder="e.g. Terms changed — resending a new version" required></lightning-textarea>
+                </div>
+                <footer class="slds-modal__footer">
+                    <lightning-button label="Keep it" onclick={closeVoid} class="slds-var-m-right_x-small"></lightning-button>
+                    <lightning-button variant="destructive" label="Void request"
+                        onclick={confirmVoid} disabled={voidConfirmDisabled}></lightning-button>
+                </footer>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+</template>

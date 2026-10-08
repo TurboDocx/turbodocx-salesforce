@@ -1,0 +1,336 @@
+<template>
+    <lightning-card title="TurboSign Configuration Builder" icon-name="custom:custom63">
+        <div class="slds-p-horizontal_medium slds-p-bottom_medium">
+
+            <!-- Edit existing / new -->
+            <template lwc:if={hasExisting}>
+                <div class="slds-grid slds-gutters slds-grid_vertical-align-end slds-m-bottom_small">
+                    <div class="slds-col slds-size_1-of-2">
+                        <lightning-combobox label="Edit an existing configuration" value={editingName} options={configOptions}
+                            onchange={handleEditConfig} placeholder="Start fresh, or load one to edit"
+                            field-level-help="Load a saved configuration back into this builder to change its mapping, recipients, or anchors."></lightning-combobox>
+                    </div>
+                    <div class="slds-col slds-grow-none">
+                        <lightning-button label="New configuration" icon-name="utility:add" onclick={handleNew}></lightning-button>
+                        <template lwc:if={canDuplicate}>
+                            <lightning-button label="Duplicate" icon-name="utility:copy" onclick={startDuplicate} class="slds-m-left_x-small"></lightning-button>
+                            <lightning-button label="Deactivate" icon-name="utility:ban" onclick={askDeactivate} class="slds-m-left_x-small"></lightning-button>
+                        </template>
+                    </div>
+                </div>
+                <template lwc:if={confirmingDeactivate}>
+                    <div class="slds-box slds-box_x-small slds-m-bottom_small slds-theme_warning">
+                        <p class="slds-m-bottom_x-small slds-text-body_small">Deactivate <strong>{editingName}</strong>? It will disappear from the document picker and this list. You can bring it back by loading it and saving again.</p>
+                        <lightning-button variant="destructive" label="Deactivate" onclick={confirmDeactivate} disabled={saving}></lightning-button>
+                        <lightning-button label="Cancel" onclick={cancelDeactivate} class="slds-m-left_xx-small" disabled={saving}></lightning-button>
+                    </div>
+                </template>
+                <template lwc:if={duplicating}>
+                    <div class="slds-box slds-box_x-small slds-m-bottom_small slds-grid slds-gutters_x-small slds-grid_vertical-align-end">
+                        <div class="slds-col">
+                            <lightning-input label="New API name for the copy" value={cloneName} onchange={handleCloneName}
+                                placeholder="e.g. Senior_Living_Lease_Spanish"></lightning-input>
+                        </div>
+                        <div class="slds-col slds-grow-none">
+                            <lightning-button variant="brand" label="Create copy" onclick={confirmDuplicate} disabled={saving}></lightning-button>
+                            <lightning-button label="Cancel" onclick={cancelDuplicate} class="slds-m-left_xx-small" disabled={saving}></lightning-button>
+                        </div>
+                    </div>
+                </template>
+            </template>
+
+            <!-- Basics -->
+            <div class="slds-grid slds-gutters slds-wrap">
+                <div class="slds-col slds-size_1-of-2">
+                    <lightning-input label="Config API Name" value={developerName}
+                        onchange={handleDeveloperName} placeholder="e.g. Service_Agreement" required
+                        field-level-help="The internal code-safe name. Auto-filled from the Label; edit it if you want a different one."></lightning-input>
+                </div>
+                <div class="slds-col slds-size_1-of-2">
+                    <lightning-input label="Label" value={label} onchange={handleLabel}></lightning-input>
+                </div>
+                <div class="slds-col slds-size_1-of-2">
+                    <lightning-combobox label="Source Object" value={sourceObject} options={objectOptions} onchange={handleSourceObject} placeholder="Select an object" field-level-help="The record the document is generated from. Its fields (and related records) drive the mappings below."></lightning-combobox>
+                </div>
+                <div class="slds-col slds-size_1-of-2">
+                    <template lwc:if={loadingTemplates}>
+                        <span class="slds-form-element__label">TurboDocx Template</span>
+                        <div class="slds-var-p-vertical_x-small"><lightning-spinner alternative-text="Loading templates" size="x-small"></lightning-spinner></div>
+                    </template>
+                    <template lwc:else>
+                        <lightning-combobox label="TurboDocx Template" value={templateId} options={templateOptions}
+                            onchange={handleTemplate} placeholder="Select a template"
+                            field-level-help="The document generated and sent for signature. Templates come from your TurboDocx account."
+                            required></lightning-combobox>
+                    </template>
+                    <template lwc:if={templatesError}>
+                        <div class="slds-text-color_error slds-text-body_small slds-var-m-top_xx-small">{templatesError}</div>
+                    </template>
+                    <template lwc:if={noTemplates}>
+                        <div class="slds-text-body_small slds-text-color_weak slds-var-m-top_xx-small">
+                            No templates found. Create one in TurboDocx first, then it appears here.
+                        </div>
+                    </template>
+                </div>
+                <div class="slds-col slds-size_1-of-1">
+                    <span class="slds-form-element__label">Document Name</span>
+                    <lightning-helptext content="Build the sent document's name from record fields, the date, and text. Field chips resolve per record at send time (e.g. Lease - Acme - Aug 26, 2026)."></lightning-helptext>
+                    <template lwc:if={hasDocSegments}>
+                        <div class="ts-docname-tray slds-box slds-box_x-small slds-m-top_xxx-small slds-m-bottom_xx-small">
+                            <template for:each={docNameRows} for:item="seg">
+                                <span key={seg.id} class="ts-chip" data-id={seg.id} data-collection="docNameSegments" ondragover={onDragOver} ondrop={onDrop}>
+                                    <span class="ts-drag" draggable="true" data-id={seg.id} data-collection="docNameSegments" ondragstart={onDragStart} title="Drag to reorder">
+                                        <lightning-icon icon-name="utility:drag_and_drop" size="xx-small"></lightning-icon>
+                                    </span>
+                                    <template lwc:if={seg.isText}>
+                                        <input class="ts-chip-input" type="text" value={seg.value} data-id={seg.id} oninput={editDocText} placeholder="text" aria-label="Document name text" />
+                                    </template>
+                                    <template lwc:if={seg.isField}>
+                                        <span class="ts-chip-field">{seg.fieldLabel}</span>
+                                    </template>
+                                    <template lwc:if={seg.isDate}>
+                                        <span class="ts-chip-date"><lightning-icon icon-name="utility:date_input" size="xx-small"></lightning-icon>&nbsp;Date</span>
+                                    </template>
+                                    <lightning-button-icon icon-name="utility:close" size="xx-small" variant="bare" data-id={seg.id} onclick={removeDocSegment} alternative-text="Remove"></lightning-button-icon>
+                                </span>
+                            </template>
+                        </div>
+                    </template>
+                    <div class="slds-grid slds-gutters_xx-small slds-wrap slds-grid_vertical-align-center">
+                        <lightning-button-menu label="Insert field" icon-name="utility:add" variant="border" menu-alignment="left" onselect={insertDocField} class="slds-m-right_xx-small">
+                            <template for:each={docFieldMenuItems} for:item="f">
+                                <lightning-menu-item key={f.value} value={f.value} label={f.label}></lightning-menu-item>
+                            </template>
+                        </lightning-button-menu>
+                        <lightning-button label="Date" icon-name="utility:date_input" variant="base" onclick={addDocDate} disabled={hasDocDate} class="slds-m-right_xx-small"></lightning-button>
+                        <lightning-button-menu label="Separator" variant="base" menu-alignment="left" onselect={insertDocSeparator} class="slds-m-right_xx-small">
+                            <template for:each={separatorItems} for:item="s">
+                                <lightning-menu-item key={s.value} value={s.value} label={s.label}></lightning-menu-item>
+                            </template>
+                        </lightning-button-menu>
+                        <lightning-button label="Text" variant="base" onclick={addDocText} class="slds-m-right_xx-small"></lightning-button>
+                        <template lwc:if={hasDocSegments}>
+                            <lightning-button label="Clear" variant="base" onclick={clearDocName}></lightning-button>
+                        </template>
+                    </div>
+                    <template lwc:if={docNameHint}>
+                        <p class="slds-text-body_small slds-text-color_weak slds-m-top_xx-small">Preview: <strong>{docNameHint}</strong></p>
+                    </template>
+                </div>
+                <div class="slds-col slds-size_1-of-2">
+                    <lightning-input label="Date Format" data-field="dateFormat" value={dateFormat} onchange={handleField}
+                        placeholder="e.g. MMMM d, yyyy"
+                        field-level-help="Optional. How dates render in the document (Apex/Java pattern, e.g. MMMM d, yyyy). Leave blank for the signer's native locale date. Currency and numbers are always localized automatically."></lightning-input>
+                </div>
+            </div>
+
+            <!-- Recipients (define signers first so tokens can be assigned to them) -->
+            <div class="slds-m-top_medium">
+                <h3 class="slds-text-heading_small slds-m-bottom_x-small">Recipients <span class="slds-text-body_small slds-text-color_weak">— who signs, from record fields (or a fixed value)</span></h3>
+                <div class="slds-grid slds-gutters_x-small slds-p-bottom_x-small slds-text-title_caps slds-text-color_weak">
+                    <div class="slds-col slds-grow-none slds-text-align_center" style="width:3.5rem">Order</div>
+                    <div class="slds-col">Signer name</div>
+                    <div class="slds-col">Signer email</div>
+                    <div class="slds-col slds-grow-none slds-text-align_center" style="width:4rem">Fixed<lightning-helptext content="On = type a fixed name/email (for a signer not on the record, e.g. a facility rep or witness). Off = pull from a record field."></lightning-helptext></div>
+                    <div class="slds-col slds-grow-none slds-text-align_center" style="width:4.5rem">Required<lightning-helptext content="Off = optional signer; dropped at send if their email is blank (e.g. a joint occupant, if applicable)."></lightning-helptext></div>
+                    <div class="slds-col slds-grow-none" style="width:2rem"></div>
+                </div>
+                <template for:each={recipientRows} for:item="r">
+                    <div key={r.id} class="ts-row slds-grid slds-gutters_x-small slds-p-vertical_x-small slds-grid_vertical-align-center slds-border_bottom" data-id={r.id} data-collection="recipients" ondragover={onDragOver} ondrop={onDrop}>
+                        <div class="slds-col slds-grow-none slds-grid slds-grid_vertical-align-center slds-grid_align-center" style="width:6rem">
+                            <span class="ts-drag" draggable="true" data-id={r.id} data-collection="recipients" ondragstart={onDragStart} ondragend={onDragEnd} title="Drag to reorder the signing order">
+                                <lightning-icon icon-name="utility:drag_and_drop" size="xx-small" alternative-text="Drag to reorder"></lightning-icon>
+                            </span>
+                            <span class="slds-badge slds-m-left_xxx-small">{r.position}</span>
+                            <lightning-button-icon icon-name="utility:chevronup" variant="bare" size="x-small" data-id={r.id} data-dir="up" onclick={moveRecipient} disabled={r.isFirst} alternative-text={r.upLabel} title={r.upLabel}></lightning-button-icon>
+                            <lightning-button-icon icon-name="utility:chevrondown" variant="bare" size="x-small" data-id={r.id} data-dir="down" onclick={moveRecipient} disabled={r.isLast} alternative-text={r.downLabel} title={r.downLabel}></lightning-button-icon>
+                        </div>
+                        <div class="slds-col">
+                            <template lwc:if={r.isFixed}>
+                                <lightning-input label="Signer name" variant="label-hidden" placeholder="Type the signer's name" data-id={r.id} data-field="staticName" value={r.staticName} onchange={editRecipient}></lightning-input>
+                            </template>
+                            <template lwc:else>
+                                <lightning-combobox label="Signer name" variant="label-hidden" placeholder="Pick a field for the name" options={allFieldPaths} data-id={r.id} data-field="nameField" value={r.nameField} onchange={editRecipient}></lightning-combobox>
+                            </template>
+                        </div>
+                        <div class="slds-col">
+                            <template lwc:if={r.isFixed}>
+                                <lightning-input type="email" label="Signer email" variant="label-hidden" placeholder="Type the signer's email" data-id={r.id} data-field="staticEmail" value={r.staticEmail} onchange={editRecipient}></lightning-input>
+                            </template>
+                            <template lwc:else>
+                                <lightning-combobox label="Signer email" variant="label-hidden" placeholder="Pick a field for the email" options={allFieldPaths} data-id={r.id} data-field="emailField" value={r.emailField} onchange={editRecipient}></lightning-combobox>
+                            </template>
+                        </div>
+                        <div class="slds-col slds-grow-none slds-text-align_center" style="width:4rem"><lightning-input type="checkbox" label="Fixed value" variant="label-hidden" data-id={r.id} data-field="fixed" checked={r.isFixed} onchange={editRecipient}></lightning-input></div>
+                        <div class="slds-col slds-grow-none slds-text-align_center" style="width:4.5rem"><lightning-input type="checkbox" label="Required" variant="label-hidden" data-id={r.id} data-field="required" checked={r.required} onchange={editRecipient}></lightning-input></div>
+                        <div class="slds-col slds-grow-none" style="width:2rem"><lightning-button-icon icon-name="utility:delete" data-collection="recipients" data-id={r.id} onclick={removeRow} alternative-text="Remove"></lightning-button-icon></div>
+                    </div>
+                </template>
+                <lightning-button label="Add recipient" icon-name="utility:add" onclick={addRecipient} variant="base" class="slds-m-top_x-small"></lightning-button>
+            </div>
+
+            <!-- Template tokens: one row per {token}; classify each as a data value or a signing field -->
+            <div class="slds-m-top_medium">
+                <h3 class="slds-text-heading_small slds-m-bottom_x-small">Template Tokens <span class="slds-text-body_small slds-text-color_weak">— classify each token in your template: fill it with data, or place a signing field</span></h3>
+                <template lwc:if={fieldsLoading}><p class="slds-text-body_small slds-text-color_weak slds-m-bottom_xx-small">Loading {sourceObject} fields…</p></template>
+                <template lwc:if={fieldsError}><p class="slds-text-color_error slds-text-body_small slds-m-bottom_xx-small">{fieldsError}</p></template>
+                <!-- Column headers -->
+                <div class="slds-grid slds-gutters_x-small slds-p-bottom_x-small slds-text-title_caps slds-text-color_weak">
+                    <div class="slds-col slds-grow-none" style="width:1.75rem"></div>
+                    <div class="slds-col slds-size_3-of-12">Token</div>
+                    <div class="slds-col slds-size_2-of-12">Kind</div>
+                    <div class="slds-col">Value source, or signer &amp; whether required</div>
+                    <div class="slds-col slds-grow-none" style="width:2rem"></div>
+                </div>
+                <template for:each={tokenRows} for:item="t">
+                    <div key={t.id} class="ts-row slds-grid slds-gutters_x-small slds-p-vertical_x-small slds-grid_vertical-align-center slds-border_bottom">
+                        <div class="slds-col slds-grow-none slds-text-align_center" style="width:1.75rem" title={t.statusTitle}>
+                            <lightning-icon icon-name={t.statusIcon} variant={t.statusVariant} size="xx-small" alternative-text={t.statusTitle}></lightning-icon>
+                        </div>
+                        <div class="slds-col slds-size_3-of-12"><lightning-input label="Token" variant="label-hidden" placeholder={exampleClientName} data-id={t.id} data-field="token" value={t.token} onchange={editToken}></lightning-input></div>
+                        <div class="slds-col slds-size_2-of-12"><lightning-combobox label="Kind" variant="label-hidden" options={kindOptions} data-id={t.id} data-field="kind" value={t.kind} onchange={editToken}></lightning-combobox></div>
+                        <!-- Detail region: flex-grows to a fixed footprint so data and signing rows share the same columns -->
+                        <div class="slds-col">
+                            <template lwc:if={t.isData}>
+                                <div class="slds-grid slds-gutters_x-small">
+                                    <div class="slds-col slds-size_2-of-6"><lightning-combobox label="Source Relationship" variant="label-hidden" placeholder="This object" options={relationshipOptions} data-id={t.id} data-field="sourceField" data-part="rel" value={t.srcRel} onchange={editTokenPath}></lightning-combobox></div>
+                                    <div class="slds-col slds-size_2-of-6"><lightning-combobox label="Source Field" variant="label-hidden" placeholder="Pick a field" options={t.srcFieldOptions} data-id={t.id} data-field="sourceField" data-part="field" value={t.srcField} onchange={editTokenPath}></lightning-combobox></div>
+                                    <div class="slds-col slds-size_1-of-6"><lightning-input label="Default" variant="label-hidden" placeholder="or default" data-id={t.id} data-field="defaultValue" value={t.defaultValue} onchange={editToken}></lightning-input></div>
+                                    <!-- Required: a blank value blocks the send; unchecked: a blank value leaves the spot empty -->
+                                    <div class="slds-col slds-size_1-of-6 slds-grid slds-grid_vertical-align-center">
+                                        <lightning-input type="checkbox" variant="label-hidden" label="Required" data-id={t.id} data-field="required" checked={t.required} onchange={editToken}></lightning-input>
+                                        <span class="slds-text-body_small slds-m-left_xx-small">Required</span>
+                                    </div>
+                                </div>
+                            </template>
+                            <template lwc:if={t.isSigning}>
+                                <div class="slds-grid slds-gutters_x-small slds-grid_vertical-align-center">
+                                    <div class="slds-col slds-size_4-of-5"><lightning-combobox label="Recipient" variant="label-hidden" placeholder="Pick a signer" options={roleOptions} data-id={t.id} data-field="role" value={t.role} onchange={editToken}></lightning-combobox></div>
+                                    <div class="slds-col slds-size_1-of-5 slds-grid slds-grid_vertical-align-center">
+                                        <template lwc:if={t.canBeOptional}>
+                                            <lightning-input type="checkbox" variant="label-hidden" label="Required" data-id={t.id} data-field="required" checked={t.required} onchange={editToken}></lightning-input>
+                                            <span class="slds-text-body_small slds-m-left_xx-small">Required</span>
+                                        </template>
+                                        <template lwc:else>
+                                            <span class="slds-text-body_small slds-text-color_weak">Always required</span>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                        <div class="slds-col slds-grow-none" style="width:2rem"><lightning-button-icon icon-name="utility:delete" data-collection="tokens" data-id={t.id} onclick={removeRow} alternative-text="Remove"></lightning-button-icon></div>
+                    </div>
+                </template>
+                <lightning-button label="Add token" icon-name="utility:add" onclick={addToken} variant="base"></lightning-button>
+                <lightning-button label="Suggest fields" icon-name="utility:magicwand" onclick={suggestFields} variant="base" class="slds-m-left_x-small" title="Guess a field for each data token from its name"></lightning-button>
+
+                <div class="slds-scoped-notification slds-media slds-media_center slds-scoped-notification_light slds-var-m-top_x-small" role="status">
+                    <div class="slds-media__figure">
+                        <lightning-icon icon-name="utility:info" size="x-small"></lightning-icon>
+                    </div>
+                    <div class="slds-media__body">
+                        <p class="slds-text-body_small"><strong>Data value</strong> fills the token from a record field (or a default). Any other kind places a signing field (signature, initials, date, …) wherever the token appears in the document, for the recipient you pick. Signing tokens must already exist as text in the template (for example <code>&lbrace;sig&rbrace;</code>).</p>
+                    </div>
+                </div>
+
+                <!-- Verify each signing token is actually in the template before saving -->
+                <div class="slds-m-top_x-small">
+                    <lightning-button label="Check anchors against template" icon-name="utility:preview" onclick={checkAnchors} disabled={canCheckAnchorsDisabled} variant="neutral"></lightning-button>
+                    <template lwc:if={anchorCheck.checking}>
+                        <lightning-spinner alternative-text="Checking anchors" size="x-small" class="slds-m-left_x-small"></lightning-spinner>
+                    </template>
+                </div>
+                <template lwc:if={anchorCheck.ran}>
+                    <div class="slds-m-top_x-small">
+                        <template lwc:if={anchorCheck.error}>
+                            <p class="slds-text-color_error slds-text-body_small">{anchorCheck.error}</p>
+                        </template>
+                        <template for:each={anchorCheck.results} for:item="a">
+                            <div key={a.anchor} class="slds-grid slds-grid_vertical-align-center slds-m-bottom_xxx-small">
+                                <lightning-icon icon-name={a.icon} variant={a.variant} size="x-small" class="slds-m-right_x-small"></lightning-icon>
+                                <span class="slds-text-body_small"><code>{a.anchor}</code> — {a.label}</span>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+            </div>
+
+            <!-- On completion (status advancement) -->
+            <div class="slds-m-top_medium">
+                <h3 class="slds-text-heading_small slds-m-bottom_x-small">On Completion <span class="slds-text-body_small slds-text-color_weak">— optional: advance the record when everyone has signed</span></h3>
+                <div class="slds-grid slds-gutters slds-grid_vertical-align-end slds-wrap">
+                    <div class="slds-col slds-size_1-of-2">
+                        <lightning-combobox label="Set field" options={completionFieldOptions} value={completionField}
+                            onchange={handleCompletionField} placeholder="No status change"
+                            field-level-help="When signing completes, this field on the record is set to the value below. Leave empty to change nothing."></lightning-combobox>
+                    </div>
+                    <template lwc:if={completionField}>
+                        <div class="slds-col slds-size_1-of-2">
+                            <template lwc:if={completionValueIsPicklist}>
+                                <lightning-combobox label="To value" options={completionValueOptions} value={completionValue}
+                                    data-field="completionValue" onchange={handleField} placeholder="Select a value"></lightning-combobox>
+                            </template>
+                            <template lwc:else>
+                                <lightning-input label="To value" data-field="completionValue" value={completionValue} onchange={handleField}
+                                    placeholder="e.g. Signed"></lightning-input>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <template lwc:if={hasValidationIssues}>
+                <div class="slds-box slds-box_x-small slds-m-top_medium slds-theme_error slds-theme_alert-texture">
+                    <p class="slds-text-body_small slds-m-bottom_xx-small"><strong>Fix these before saving:</strong></p>
+                    <ul class="slds-list_dotted">
+                        <template for:each={validationIssues} for:item="issue">
+                            <li key={issue} class="slds-text-body_small">{issue}</li>
+                        </template>
+                    </ul>
+                </div>
+            </template>
+
+            <template lwc:if={sourceObject}>
+                <div class="slds-box slds-box_x-small slds-m-top_medium">
+                    <p class="slds-text-title_caps slds-m-bottom_x-small">Test with a record</p>
+                    <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_x-small">Pick a {sourceObject} record to see the values these mappings resolve to.</p>
+                    <div class="slds-grid slds-gutters slds-grid_vertical-align-end">
+                        <div class="slds-col slds-size_3-of-4">
+                            <lightning-record-picker label="Record" placeholder="Search records..." object-api-name={sourceObject} onchange={handleTestRecord}></lightning-record-picker>
+                        </div>
+                        <div class="slds-col slds-size_1-of-4">
+                            <lightning-button label="Preview values" onclick={runPreview} disabled={previewDisabled} class="slds-m-top_x-small"></lightning-button>
+                        </div>
+                    </div>
+                    <template lwc:if={previewDocName}>
+                        <p class="slds-text-body_regular slds-m-top_small"><strong>Document name:</strong> {previewDocName}</p>
+                    </template>
+                    <template lwc:if={previewRows.length}>
+                        <table class="slds-table slds-table_bordered slds-table_cell-buffer slds-m-top_small">
+                            <thead>
+                                <tr class="slds-line-height_reset">
+                                    <th scope="col"><div class="slds-truncate">Placeholder</div></th>
+                                    <th scope="col"><div class="slds-truncate">Resolved value</div></th>
+                                    <th scope="col"><div class="slds-truncate">From</div></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template for:each={previewRows} for:item="row">
+                                    <tr key={row.key}>
+                                        <td><div class="slds-truncate">{row.placeholder}</div></td>
+                                        <td><div class="slds-truncate">{row.value}</div></td>
+                                        <td><div class="slds-truncate slds-text-color_weak">{row.source}</div></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </template>
+                </div>
+            </template>
+
+            <div class="slds-m-top_large slds-text-align_right">
+                <lightning-button label="Save Configuration" variant="brand" onclick={handleSave} disabled={saveDisabled}></lightning-button>
+            </div>
+        </div>
+    </lightning-card>
+</template>

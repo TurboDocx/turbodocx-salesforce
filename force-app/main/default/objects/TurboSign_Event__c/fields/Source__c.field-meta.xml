@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+  <fullName>Source__c</fullName>
+  <label>Source</label>
+  <type>Picklist</type>
+  <valueSet>
+    <valueSetDefinition>
+      <sorted>false</sorted>
+      <value>
+        <fullName>webhook</fullName>
+        <default>false</default>
+      </value>
+      <value>
+        <fullName>poll</fullName>
+        <default>false</default>
+      </value>
+      <value>
+        <fullName>local</fullName>
+        <default>false</default>
+      </value>
+    </valueSetDefinition>
+  </valueSet>
+</CustomField>

@@ -1,0 +1,60 @@
+/* Row rhythm for the Recipients and Template Tokens editors: a quiet hover so the eye can track a wide
+   row across its columns, and a soft separator tone. SLDS design tokens only (theme-safe, no hard-coded color). */
+.ts-row {
+    border-radius: 0.25rem;
+    transition: background-color 0.1s ease-in-out;
+}
+.ts-row:hover {
+    background-color: var(--lwc-colorBackgroundRowHover, var(--slds-g-color-neutral-95, #f3f2f2));
+}
+.ts-drag {
+    cursor: grab;
+    display: inline-flex;
+}
+.ts-drag:active {
+    cursor: grabbing;
+}
+
+/* Document-name builder: a tray of reorderable chips (text / field / date). SLDS tokens only. */
+.ts-docname-tray {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem;
+    background-color: var(--slds-g-color-neutral-95, #f3f2f2);
+    min-height: 2.25rem;
+}
+.ts-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.125rem;
+    padding: 0.125rem 0.25rem;
+    border: 1px solid var(--slds-g-color-border-base-1, #c9c9c9);
+    border-radius: 0.25rem;
+    background-color: var(--slds-g-color-neutral-100, #ffffff);
+}
+.ts-chip-input {
+    border: none;
+    outline: none;
+    background: transparent;
+    font: inherit;
+    min-width: 3rem;
+    max-width: 16rem;
+    padding: 0;
+}
+.ts-chip-field {
+    display: inline-block;
+    padding: 0 0.25rem;
+    border-radius: 0.25rem;
+    font-weight: 600;
+    color: var(--slds-g-color-brand-base-20, #014486);
+    background-color: var(--slds-g-color-brand-base-95, #eef4ff);
+}
+.ts-chip-date {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 0.25rem;
+    border-radius: 0.25rem;
+    color: var(--slds-g-color-warning-base-30, #8a5340);
+    background-color: var(--slds-g-color-warning-base-90, #fef5e9);
+}

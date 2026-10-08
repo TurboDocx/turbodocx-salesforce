@@ -1,0 +1,22 @@
+# Salesforce / SFDX
+.sf/
+.sfdx/
+.localdevserver/
+deploy-options.json
+**/main/default/lwc/**/__tests__/coverage/
+
+# Node
+node_modules/
+npm-debug.log
+
+# Secrets — never commit (spec §2.7, §3.1)
+.env
+*.key
+authFile*.json
+
+# OS / editor
+.DS_Store
+*.log
+
+# Local personal settings (permission allow-rules)
+.claude/settings.local.json

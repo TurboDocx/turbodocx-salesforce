@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ReportType xmlns="http://soap.sforce.com/2006/04/metadata">
+    <baseObject>TurboSign_Envelope__c</baseObject>
+    <category>other</category>
+    <deployed>true</deployed>
+    <description>Signature envelopes with their per-recipient status and delivery history, for signing-status reports and dashboards.</description>
+    <join>
+        <outerJoin>true</outerJoin>
+        <relationship>TurboSign_Recipients__r</relationship>
+    </join>
+    <label>TurboSign Envelopes with Recipients</label>
+    <sections>
+        <columns><checkedByDefault>true</checkedByDefault><field>Name</field><table>TurboSign_Envelope__c</table></columns>
+        <columns><checkedByDefault>true</checkedByDefault><field>Status__c</field><table>TurboSign_Envelope__c</table></columns>
+        <columns><checkedByDefault>true</checkedByDefault><field>Document_Name__c</field><table>TurboSign_Envelope__c</table></columns>
+        <columns><checkedByDefault>true</checkedByDefault><field>Recipient_Count__c</field><table>TurboSign_Envelope__c</table></columns>
+        <columns><checkedByDefault>true</checkedByDefault><field>Signed_Count__c</field><table>TurboSign_Envelope__c</table></columns>
+        <columns><checkedByDefault>false</checkedByDefault><field>Sent_On__c</field><table>TurboSign_Envelope__c</table></columns>
+        <columns><checkedByDefault>false</checkedByDefault><field>Completed_On__c</field><table>TurboSign_Envelope__c</table></columns>
+        <columns><checkedByDefault>false</checkedByDefault><field>Related_Record_Id__c</field><table>TurboSign_Envelope__c</table></columns>
+        <columns><checkedByDefault>false</checkedByDefault><field>Last_Synced__c</field><table>TurboSign_Envelope__c</table></columns>
+        <masterLabel>Envelope</masterLabel>
+    </sections>
+    <sections>
+        <columns><checkedByDefault>true</checkedByDefault><field>Recipient_Name__c</field><table>TurboSign_Envelope__c.TurboSign_Recipients__r</table></columns>
+        <columns><checkedByDefault>true</checkedByDefault><field>Email__c</field><table>TurboSign_Envelope__c.TurboSign_Recipients__r</table></columns>
+        <columns><checkedByDefault>true</checkedByDefault><field>Effective_Status__c</field><table>TurboSign_Envelope__c.TurboSign_Recipients__r</table></columns>
+        <columns><checkedByDefault>true</checkedByDefault><field>Signing_Order__c</field><table>TurboSign_Envelope__c.TurboSign_Recipients__r</table></columns>
+        <columns><checkedByDefault>true</checkedByDefault><field>Signed_On__c</field><table>TurboSign_Envelope__c.TurboSign_Recipients__r</table></columns>
+        <columns><checkedByDefault>false</checkedByDefault><field>First_Sent_On__c</field><table>TurboSign_Envelope__c.TurboSign_Recipients__r</table></columns>
+        <columns><checkedByDefault>false</checkedByDefault><field>Total_Sent__c</field><table>TurboSign_Envelope__c.TurboSign_Recipients__r</table></columns>
+        <columns><checkedByDefault>false</checkedByDefault><field>Reminder_Count__c</field><table>TurboSign_Envelope__c.TurboSign_Recipients__r</table></columns>
+        <masterLabel>Recipients</masterLabel>
+    </sections>
+</ReportType>

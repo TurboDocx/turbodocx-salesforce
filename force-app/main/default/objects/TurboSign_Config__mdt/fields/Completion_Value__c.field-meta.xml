@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+  <fullName>Completion_Value__c</fullName>
+  <externalId>false</externalId>
+  <fieldManageability>DeveloperControlled</fieldManageability>
+  <label>Completion Value</label>
+  <inlineHelpText>Value to write into the Completion Field when signing completes (for example Closed Won).</inlineHelpText>
+  <type>Text</type>
+  <length>255</length>
+</CustomField>

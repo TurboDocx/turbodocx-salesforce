@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomMetadata xmlns="http://soap.sforce.com/2006/04/metadata" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" label="Date Anchor">
+    <values>
+        <field>Config__c</field>
+        <value xsi:type="xsd:string">TurboSign_Config.Example_Agreement</value>
+    </values>
+    <values>
+        <field>Placeholder__c</field>
+        <value xsi:type="xsd:string">{DateAnchor}</value>
+    </values>
+    <values>
+        <field>Default_Value__c</field>
+        <value xsi:type="xsd:string">{date}</value>
+    </values>
+    <values>
+        <field>Mime_Type__c</field>
+        <value xsi:type="xsd:string">text</value>
+    </values>
+</CustomMetadata>
