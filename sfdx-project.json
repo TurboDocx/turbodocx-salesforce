@@ -1,18 +1,24 @@
 {
   "packageDirectories": [
     {
+      "versionName": "ver 1.0",
+      "versionNumber": "1.0.0.NEXT",
       "path": "force-app",
       "default": true,
       "package": "TurboSign for Salesforce",
-      "versionName": "ver 1.0",
-      "versionNumber": "1.0.0.NEXT",
+      "versionDescription": "Send TurboDocx documents for e-signature from Salesforce records",
       "unpackagedMetadata": {
         "path": "unpackaged"
-      }
+      },
+      "definitionFile": "config/project-scratch-def.json"
     }
   ],
   "name": "turbodocx-salesforce",
   "namespace": "",
   "sfdcLoginUrl": "https://login.salesforce.com",
-  "sourceApiVersion": "62.0"
+  "sourceApiVersion": "62.0",
+  "packageAliases": {
+    "TurboSign for Salesforce": "0Hobm0000006wULCAY",
+    "TurboSign for Salesforce@1.0.0-1": "04tbm000000mtqDAAQ"
+  }
 }

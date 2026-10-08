@@ -54,21 +54,23 @@ private class TurboSignModalSendTest {
 
     @IsTest
     static void failedSendThrowsTheBackendReasonAndCreatesNothing() {
-        Opportunity o = makeOpp();
-        Test.setMock(HttpCalloutMock.class, new SendMock(400,
-            '{"message":"There was an issue validating the body","type":"ValidationError","data":{"errors":'
-            + '[{"message":"\\"variables[8].text\\" is not allowed to be empty","path":["variables",8,"text"]}]}}'));
+        System.runAs(TurboSignTestRep.user()) {
+            Opportunity o = makeOpp();
+            Test.setMock(HttpCalloutMock.class, new SendMock(400,
+                '{"message":"There was an issue validating the body","type":"ValidationError","data":{"errors":'
+                + '[{"message":"\\"variables[8].text\\" is not allowed to be empty","path":["variables",8,"text"]}]}}'));
 
-        Test.startTest();
-        Map<String, Object> res = TurboSignQuickActionController.sendForSignature(o.Id, 'Example_Agreement', null);
-        Test.stopTest();
+            Test.startTest();
+            Map<String, Object> res = TurboSignQuickActionController.sendForSignature(o.Id, 'Example_Agreement', null);
+            Test.stopTest();
 
-        String msg = (String) res.get('message');
-        System.assertEquals(false, res.get('ok'), 'a failed send is reported as failed');
-        System.assert(msg.contains('variables[8].text'), 'names the failing field, got: ' + msg);
-        System.assertEquals(false, res.get('maybeSent'), 'a validation 400 means nothing was sent');
-        System.assertEquals(1, [SELECT COUNT() FROM TurboSign_Log__c], 'the failure is logged for the admin');
-        System.assertEquals(0, [SELECT COUNT() FROM TurboSign_Envelope__c], 'no envelope for a failed send');
+            String msg = (String) res.get('message');
+            System.assertEquals(false, res.get('ok'), 'a failed send is reported as failed');
+            System.assert(msg.contains('variables[8].text'), 'names the failing field, got: ' + msg);
+            System.assertEquals(false, res.get('maybeSent'), 'a validation 400 means nothing was sent');
+            System.assertEquals(1, [SELECT COUNT() FROM TurboSign_Log__c], 'the failure is logged for the admin');
+            System.assertEquals(0, [SELECT COUNT() FROM TurboSign_Envelope__c], 'no envelope for a failed send');
+        }
     }
 
     private class TimeoutOnSendMock implements HttpCalloutMock {
@@ -85,15 +87,17 @@ private class TurboSignModalSendTest {
     // rep is warned instead of being invited to send a duplicate.
     @IsTest
     static void timeoutDuringSendIsFlaggedAsMaybeSent() {
-        Opportunity o = makeOpp();
-        Test.setMock(HttpCalloutMock.class, new TimeoutOnSendMock());
+        System.runAs(TurboSignTestRep.user()) {
+            Opportunity o = makeOpp();
+            Test.setMock(HttpCalloutMock.class, new TimeoutOnSendMock());
 
-        Test.startTest();
-        Map<String, Object> res = TurboSignQuickActionController.sendForSignature(o.Id, 'Example_Agreement', null);
-        Test.stopTest();
+            Test.startTest();
+            Map<String, Object> res = TurboSignQuickActionController.sendForSignature(o.Id, 'Example_Agreement', null);
+            Test.stopTest();
 
-        System.assertEquals(false, res.get('ok'));
-        System.assertEquals(true, res.get('maybeSent'), 'a timeout on the send call may have sent it');
+            System.assertEquals(false, res.get('ok'));
+            System.assertEquals(true, res.get('maybeSent'), 'a timeout on the send call may have sent it');
+        }
     }
 
     // Review: the rep modal lists configs through the rep controller, not the admin one.
@@ -136,18 +140,20 @@ private class TurboSignModalSendTest {
 
     @IsTest
     static void remindAndVoidCallTheDocumentOnTheEnvelope() {
-        TurboSign_Envelope__c e = new TurboSign_Envelope__c(
-            Document_Name__c = 'T', Status__c = 'sent', TurboDocx_Document_Id__c = 'doc-1');
-        insert e;
-        Test.setMock(HttpCalloutMock.class, new TurboSignHttpMock(200,
-            '{"data":{"results":[{"recipientId":"r1","status":"sent"}],"id":"doc-1","status":"voided"}}'));
+        System.runAs(TurboSignTestRep.user()) {
+            TurboSign_Envelope__c e = new TurboSign_Envelope__c(
+                Document_Name__c = 'T', Status__c = 'sent', TurboDocx_Document_Id__c = 'doc-1');
+            insert e;
+            Test.setMock(HttpCalloutMock.class, new TurboSignHttpMock(200,
+                '{"data":{"results":[{"recipientId":"r1","status":"sent"}],"id":"doc-1","status":"voided"}}'));
 
-        Test.startTest();
-        String reminded = TurboSignQuickActionController.remind(e.Id);
-        TurboSignQuickActionController.voidEnvelope(e.Id, 'Superseded');
-        Test.stopTest();
+            Test.startTest();
+            String reminded = TurboSignQuickActionController.remind(e.Id);
+            TurboSignQuickActionController.voidEnvelope(e.Id, 'Superseded');
+            Test.stopTest();
 
-        System.assert(reminded.contains('r1'), 'reminder results returned to the panel');
-        System.assertEquals('voided', [SELECT Status__c FROM TurboSign_Envelope__c WHERE Id = :e.Id].Status__c, 'voided locally');
+            System.assert(reminded.contains('r1'), 'reminder results returned to the panel');
+            System.assertEquals('voided', [SELECT Status__c FROM TurboSign_Envelope__c WHERE Id = :e.Id].Status__c, 'voided locally');
+        }
     }
 }

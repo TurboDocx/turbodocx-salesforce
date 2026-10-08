@@ -23,8 +23,7 @@ Distributable Salesforce package (unlocked, no namespace for v1) that lets a sal
 send a document for e-signature through TurboSign from a Salesforce record and see the
 full signature lifecycle written back onto that record.
 
-**Status:** pre-release. The package works end to end (send from a record, sign, signed PDF and
-audit trail saved back, record updated on completion); a one-click install link is coming.
+**Install v1.0.0:** [Production or Developer Edition](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tbm000000mtqDAAQ) • [Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tbm000000mtqDAAQ)
 Full admin guide: [TurboSign for Salesforce docs](https://docs.turbodocx.com/docs/Integrations/turbosign-for-salesforce).
 
 ## Connecting to TurboDocx
@@ -69,9 +68,12 @@ installs it. The app ships custom Apex, so it needs an edition that runs custom 
 
 Install methods:
 
-1. **Install link (unlocked package, coming soon).** Any Salesforce admin clicks a link. Upgrades
-   install over the old version; uninstall is one click.
-2. **Deploy from source (today).** A developer deploys with the Salesforce CLI:
+1. **Install link (unlocked package).** Any Salesforce admin opens the link, logs in, and picks
+   **Install for Admins Only** (then assign the permission sets). Links for the latest version are on
+   the [Releases](https://github.com/TurboDocx/turbosign-salesforce/releases) page; v1.0.0:
+   [production or Developer Edition](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tbm000000mtqDAAQ), [sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tbm000000mtqDAAQ). Upgrades install over the old version;
+   uninstall is one click.
+2. **Deploy from source.** A developer deploys with the Salesforce CLI:
 
    ```bash
    sf project deploy start --source-dir force-app --target-org <alias>

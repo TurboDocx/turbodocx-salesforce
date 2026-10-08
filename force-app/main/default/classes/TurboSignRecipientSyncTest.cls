@@ -49,73 +49,79 @@ private class TurboSignRecipientSyncTest {
 
     @IsTest
     static void syncEnvelopeUpsertsRecipientsAndRollsEnvelopeCounts() {
-        TurboSign_Envelope__c env = newEnvelope('doc-9');
-        String body =
-            '{"data":{"recipients":[' +
-            '{"id":"r1","name":"A","email":"a@x.com","status":"completed","effectiveStatus":"completed",' +
-            '"signingOrder":1,"signedOn":"2026-08-27T14:56:15.000Z","delivery":{"firstSentOn":"2026-08-27T14:50:00.000Z","totalSent":1}},' +
-            '{"id":"r2","name":"B","email":"b@x.com","status":"pending","effectiveStatus":"pending",' +
-            '"signingOrder":2,"delivery":{"totalSent":0}}],' +
-            '"summary":{"total":2,"completed":1}}}';
-        Test.setMock(HttpCalloutMock.class, new TurboSignHttpMock(200, body));
+        System.runAs(TurboSignTestRep.user()) {
+            TurboSign_Envelope__c env = newEnvelope('doc-9');
+            String body =
+                '{"data":{"recipients":[' +
+                '{"id":"r1","name":"A","email":"a@x.com","status":"completed","effectiveStatus":"completed",' +
+                '"signingOrder":1,"signedOn":"2026-08-27T14:56:15.000Z","delivery":{"firstSentOn":"2026-08-27T14:50:00.000Z","totalSent":1}},' +
+                '{"id":"r2","name":"B","email":"b@x.com","status":"pending","effectiveStatus":"pending",' +
+                '"signingOrder":2,"delivery":{"totalSent":0}}],' +
+                '"summary":{"total":2,"completed":1}}}';
+            Test.setMock(HttpCalloutMock.class, new TurboSignHttpMock(200, body));
 
-        Test.startTest();
-        Integer n = TurboSignRecipientSync.syncEnvelope(env.Id);
-        Test.stopTest();
+            Test.startTest();
+            Integer n = TurboSignRecipientSync.syncEnvelope(env.Id);
+            Test.stopTest();
 
-        System.assertEquals(2, n, 'returns the number of recipients synced');
-        List<TurboSign_Recipient__c> recs = [
-            SELECT TurboDocx_Recipient_Id__c, Status__c, Signing_Order__c
-            FROM TurboSign_Recipient__c WHERE Envelope__c = :env.Id ORDER BY Signing_Order__c];
-        System.assertEquals(2, recs.size(), 'both recipients written as child records');
-        System.assertEquals('completed', recs[0].Status__c);
-        System.assertEquals('pending', recs[1].Status__c);
+            System.assertEquals(2, n, 'returns the number of recipients synced');
+            List<TurboSign_Recipient__c> recs = [
+                SELECT TurboDocx_Recipient_Id__c, Status__c, Signing_Order__c
+                FROM TurboSign_Recipient__c WHERE Envelope__c = :env.Id ORDER BY Signing_Order__c];
+            System.assertEquals(2, recs.size(), 'both recipients written as child records');
+            System.assertEquals('completed', recs[0].Status__c);
+            System.assertEquals('pending', recs[1].Status__c);
 
-        TurboSign_Envelope__c e2 = [
-            SELECT Recipient_Count__c, Signed_Count__c, Last_Synced__c
-            FROM TurboSign_Envelope__c WHERE Id = :env.Id];
-        System.assertEquals(2, e2.Recipient_Count__c, 'total rolled onto the envelope');
-        System.assertEquals(1, e2.Signed_Count__c, 'completed count rolled onto the envelope');
-        System.assertNotEquals(null, e2.Last_Synced__c, 'sync stamps Last_Synced__c');
+            TurboSign_Envelope__c e2 = [
+                SELECT Recipient_Count__c, Signed_Count__c, Last_Synced__c
+                FROM TurboSign_Envelope__c WHERE Id = :env.Id];
+            System.assertEquals(2, e2.Recipient_Count__c, 'total rolled onto the envelope');
+            System.assertEquals(1, e2.Signed_Count__c, 'completed count rolled onto the envelope');
+            System.assertNotEquals(null, e2.Last_Synced__c, 'sync stamps Last_Synced__c');
+        }
     }
 
     @IsTest
     static void syncIsIdempotentByExternalId() {
-        TurboSign_Envelope__c env = newEnvelope('doc-idem');
-        String body =
-            '{"data":{"recipients":[' +
-            '{"id":"r1","name":"A","email":"a@x.com","status":"completed","effectiveStatus":"completed","signingOrder":1}],' +
-            '"summary":{"total":1,"completed":1}}}';
-        Test.setMock(HttpCalloutMock.class, new TurboSignHttpMock(200, body));
+        System.runAs(TurboSignTestRep.user()) {
+            TurboSign_Envelope__c env = newEnvelope('doc-idem');
+            String body =
+                '{"data":{"recipients":[' +
+                '{"id":"r1","name":"A","email":"a@x.com","status":"completed","effectiveStatus":"completed","signingOrder":1}],' +
+                '"summary":{"total":1,"completed":1}}}';
+            Test.setMock(HttpCalloutMock.class, new TurboSignHttpMock(200, body));
 
-        List<Object> sameRecips = (List<Object>) JSON.deserializeUntyped(
-            '[{"id":"r1","name":"A","email":"a@x.com","status":"completed","effectiveStatus":"completed","signingOrder":1}]');
+            List<Object> sameRecips = (List<Object>) JSON.deserializeUntyped(
+                '[{"id":"r1","name":"A","email":"a@x.com","status":"completed","effectiveStatus":"completed","signingOrder":1}]');
 
-        Test.startTest();
-        TurboSignRecipientSync.syncEnvelope(env.Id); // real sync: callout + upsert
-        // A later sync upserts the same external id again (no second callout in one txn, per Apex rules).
-        upsert TurboSignRecipientSync.toRecords(env.Id, sameRecips) TurboSign_Recipient__c.TurboDocx_Recipient_Id__c;
-        Test.stopTest();
+            Test.startTest();
+            TurboSignRecipientSync.syncEnvelope(env.Id); // real sync: callout + upsert
+            // A later sync upserts the same external id again (no second callout in one txn, per Apex rules).
+            upsert TurboSignRecipientSync.toRecords(env.Id, sameRecips) TurboSign_Recipient__c.TurboDocx_Recipient_Id__c;
+            Test.stopTest();
 
-        System.assertEquals(1, [SELECT COUNT() FROM TurboSign_Recipient__c WHERE Envelope__c = :env.Id],
-            'upsert by external id -> no duplicate child records on re-sync');
+            System.assertEquals(1, [SELECT COUNT() FROM TurboSign_Recipient__c WHERE Envelope__c = :env.Id],
+                'upsert by external id -> no duplicate child records on re-sync');
+        }
     }
 
     // Review: the sync already receives document.status; write terminal states onto the envelope.
     @IsTest
     static void syncMarksACompletedDocumentCompleted() {
-        TurboSign_Envelope__c env = newEnvelope('doc-done');
-        Test.setMock(HttpCalloutMock.class, new TurboSignHttpMock(200,
-            '{"data":{"document":{"status":"completed"},"recipients":[{"id":"r9","name":"A","email":"a@x.com",'
-            + '"status":"completed","effectiveStatus":"completed","signingOrder":1}]}}'));
+        System.runAs(TurboSignTestRep.user()) {
+            TurboSign_Envelope__c env = newEnvelope('doc-done');
+            Test.setMock(HttpCalloutMock.class, new TurboSignHttpMock(200,
+                '{"data":{"document":{"status":"completed"},"recipients":[{"id":"r9","name":"A","email":"a@x.com",'
+                + '"status":"completed","effectiveStatus":"completed","signingOrder":1}]}}'));
 
-        Test.startTest();
-        TurboSignRecipientSync.syncEnvelope(env.Id);
-        Test.stopTest();
+            Test.startTest();
+            TurboSignRecipientSync.syncEnvelope(env.Id);
+            Test.stopTest();
 
-        TurboSign_Envelope__c e = [SELECT Status__c, Completed_On__c, Sync_Active__c FROM TurboSign_Envelope__c WHERE Id = :env.Id];
-        System.assertEquals('completed', e.Status__c, 'status follows the document');
-        System.assertNotEquals(null, e.Completed_On__c, 'completion time stamped');
-        System.assertEquals(false, e.Sync_Active__c, 'terminal status stops syncing');
+            TurboSign_Envelope__c e = [SELECT Status__c, Completed_On__c, Sync_Active__c FROM TurboSign_Envelope__c WHERE Id = :env.Id];
+            System.assertEquals('completed', e.Status__c, 'status follows the document');
+            System.assertNotEquals(null, e.Completed_On__c, 'completion time stamped');
+            System.assertEquals(false, e.Sync_Active__c, 'terminal status stops syncing');
+        }
     }
 }

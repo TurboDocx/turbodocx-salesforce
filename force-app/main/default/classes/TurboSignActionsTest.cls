@@ -35,42 +35,48 @@ private class TurboSignActionsTest {
 
     @IsTest
     static void statusActionReturnsLiveStatus() {
-        TurboSign_Envelope__c e = makeEnvelope();
-        Test.setMock(HttpCalloutMock.class, new Mock());
-        TurboSignStatusAction.Input inp = new TurboSignStatusAction.Input();
-        inp.envelopeId = e.Id;
-        Test.startTest();
-        List<TurboSignStatusAction.Output> outs = TurboSignStatusAction.run(new List<TurboSignStatusAction.Input>{ inp });
-        Test.stopTest();
-        System.assertEquals('sent', outs[0].status, 'status parsed from live call');
+        System.runAs(TurboSignTestRep.user()) {
+            TurboSign_Envelope__c e = makeEnvelope();
+            Test.setMock(HttpCalloutMock.class, new Mock());
+            TurboSignStatusAction.Input inp = new TurboSignStatusAction.Input();
+            inp.envelopeId = e.Id;
+            Test.startTest();
+            List<TurboSignStatusAction.Output> outs = TurboSignStatusAction.run(new List<TurboSignStatusAction.Input>{ inp });
+            Test.stopTest();
+            System.assertEquals('sent', outs[0].status, 'status parsed from live call');
+        }
     }
 
     @IsTest
     static void reminderActionSurfacesResults() {
-        TurboSign_Envelope__c e = makeEnvelope();
-        Test.setMock(HttpCalloutMock.class, new Mock());
-        TurboSignReminderAction.Input inp = new TurboSignReminderAction.Input();
-        inp.envelopeId = e.Id;
-        Test.startTest();
-        List<TurboSignReminderAction.Output> outs = TurboSignReminderAction.run(new List<TurboSignReminderAction.Input>{ inp });
-        Test.stopTest();
-        System.assertEquals('ok', outs[0].status, 'reminder ok');
-        System.assert(outs[0].message.contains('sent'), 'results surfaced');
+        System.runAs(TurboSignTestRep.user()) {
+            TurboSign_Envelope__c e = makeEnvelope();
+            Test.setMock(HttpCalloutMock.class, new Mock());
+            TurboSignReminderAction.Input inp = new TurboSignReminderAction.Input();
+            inp.envelopeId = e.Id;
+            Test.startTest();
+            List<TurboSignReminderAction.Output> outs = TurboSignReminderAction.run(new List<TurboSignReminderAction.Input>{ inp });
+            Test.stopTest();
+            System.assertEquals('ok', outs[0].status, 'reminder ok');
+            System.assert(outs[0].message.contains('sent'), 'results surfaced');
+        }
     }
 
     @IsTest
     static void voidActionUpdatesEnvelope() {
-        TurboSign_Envelope__c e = makeEnvelope();
-        Test.setMock(HttpCalloutMock.class, new Mock());
-        TurboSignVoidAction.Input inp = new TurboSignVoidAction.Input();
-        inp.envelopeId = e.Id; inp.reason = 'Superseded';
-        Test.startTest();
-        TurboSignVoidAction.run(new List<TurboSignVoidAction.Input>{ inp });
-        Test.stopTest();
-        TurboSign_Envelope__c after = [SELECT Status__c, Void_Reason__c, Sync_Active__c FROM TurboSign_Envelope__c WHERE Id=:e.Id];
-        System.assertEquals('voided', after.Status__c, 'envelope voided');
-        System.assertEquals('Superseded', after.Void_Reason__c, 'reason stored');
-        System.assertEquals(false, after.Sync_Active__c, 'sync stopped');
+        System.runAs(TurboSignTestRep.user()) {
+            TurboSign_Envelope__c e = makeEnvelope();
+            Test.setMock(HttpCalloutMock.class, new Mock());
+            TurboSignVoidAction.Input inp = new TurboSignVoidAction.Input();
+            inp.envelopeId = e.Id; inp.reason = 'Superseded';
+            Test.startTest();
+            TurboSignVoidAction.run(new List<TurboSignVoidAction.Input>{ inp });
+            Test.stopTest();
+            TurboSign_Envelope__c after = [SELECT Status__c, Void_Reason__c, Sync_Active__c FROM TurboSign_Envelope__c WHERE Id=:e.Id];
+            System.assertEquals('voided', after.Status__c, 'envelope voided');
+            System.assertEquals('Superseded', after.Void_Reason__c, 'reason stored');
+            System.assertEquals(false, after.Sync_Active__c, 'sync stopped');
+        }
     }
 
     @IsTest
@@ -106,13 +112,15 @@ private class TurboSignActionsTest {
 
     @IsTest
     static void getEnvelopesReturnsEnvelopesForAccessibleParent() {
-        Account a = new Account(Name = 'Parent'); insert a;
-        insert new TurboSign_Envelope__c(Document_Name__c = 'D', Status__c = 'sent',
-            TurboDocx_Document_Id__c = 'doc-1', Related_Record_Id__c = a.Id);
-        Test.startTest();
-        List<TurboSign_Envelope__c> got = TurboSignQuickActionController.getEnvelopes(a.Id);
-        Test.stopTest();
-        System.assertEquals(1, got.size(), 'running user can read the parent record, so its envelopes are returned');
+        System.runAs(TurboSignTestRep.user()) {
+            Account a = new Account(Name = 'Parent'); insert a;
+            insert new TurboSign_Envelope__c(Document_Name__c = 'D', Status__c = 'sent',
+                TurboDocx_Document_Id__c = 'doc-1', Related_Record_Id__c = a.Id);
+            Test.startTest();
+            List<TurboSign_Envelope__c> got = TurboSignQuickActionController.getEnvelopes(a.Id);
+            Test.stopTest();
+            System.assertEquals(1, got.size(), 'running user can read the parent record, so its envelopes are returned');
+        }
     }
 
     // Review: one transaction can't call out after DML, so the bulk job sends ONE record and chains the
@@ -145,19 +153,21 @@ private class TurboSignActionsTest {
     // Review: remind/void must not act on an envelope whose record the user can't access.
     @IsTest
     static void remindAndVoidRequireAccessToTheRecord() {
-        Opportunity gone = new Opportunity(Name = 'Gone', StageName = 'Prospecting', CloseDate = Date.today());
-        insert gone;
-        Id goneId = gone.Id;
-        delete gone;
-        TurboSign_Envelope__c e = new TurboSign_Envelope__c(Document_Name__c = 'T', Status__c = 'sent',
-            TurboDocx_Document_Id__c = 'doc-1', Related_Record_Id__c = goneId);
-        insert e;
-        Test.setMock(HttpCalloutMock.class, new Mock());
+        System.runAs(TurboSignTestRep.user()) {
+            Opportunity gone = new Opportunity(Name = 'Gone', StageName = 'Prospecting', CloseDate = Date.today());
+            insert gone;
+            Id goneId = gone.Id;
+            delete gone;
+            TurboSign_Envelope__c e = new TurboSign_Envelope__c(Document_Name__c = 'T', Status__c = 'sent',
+                TurboDocx_Document_Id__c = 'doc-1', Related_Record_Id__c = goneId);
+            insert e;
+            Test.setMock(HttpCalloutMock.class, new Mock());
 
-        Integer blocked = 0;
-        try { TurboSignQuickActionController.voidEnvelope(e.Id, 'x'); } catch (AuraHandledException ex) { blocked++; }
-        try { TurboSignQuickActionController.remind(e.Id); } catch (AuraHandledException ex) { blocked++; }
-        System.assertEquals(2, blocked, 'both actions refuse without access to the related record');
-        System.assertEquals('sent', [SELECT Status__c FROM TurboSign_Envelope__c WHERE Id = :e.Id].Status__c, 'not voided');
+            Integer blocked = 0;
+            try { TurboSignQuickActionController.voidEnvelope(e.Id, 'x'); } catch (AuraHandledException ex) { blocked++; }
+            try { TurboSignQuickActionController.remind(e.Id); } catch (AuraHandledException ex) { blocked++; }
+            System.assertEquals(2, blocked, 'both actions refuse without access to the related record');
+            System.assertEquals('sent', [SELECT Status__c FROM TurboSign_Envelope__c WHERE Id = :e.Id].Status__c, 'not voided');
+        }
     }
 }
