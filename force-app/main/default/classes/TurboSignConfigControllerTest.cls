@@ -253,7 +253,7 @@ private class TurboSignConfigControllerTest {
     // (AuraHandledException.getMessage() is opaque in tests, so we assert on the throw, not its text.)
     @IsTest
     static void requireConfigAdminGatesOnTheCustomPermission() {
-        User u = makeStandardUser();
+        User u = TurboSignTestRep.user();
         System.runAs(u) {
             Boolean blocked = false;
             try { TurboSignConfigController.requireConfigAdmin(); }
@@ -271,7 +271,7 @@ private class TurboSignConfigControllerTest {
 
     @IsTest
     static void saveConfigRequiresConfigAdminPermission() {
-        User u = makeStandardUser();
+        User u = TurboSignTestRep.user();
         System.runAs(u) {
             Boolean blocked = false;
             try { TurboSignConfigController.saveConfig(samplePayload()); }
@@ -282,7 +282,7 @@ private class TurboSignConfigControllerTest {
 
     @IsTest
     static void deactivateAndCloneRequireConfigAdminPermission() {
-        User u = makeStandardUser();
+        User u = TurboSignTestRep.user();
         System.runAs(u) {
             Boolean deBlocked = false, clBlocked = false;
             try { TurboSignConfigController.deactivateConfig('Example_Agreement'); }
@@ -292,16 +292,6 @@ private class TurboSignConfigControllerTest {
             System.assert(deBlocked, 'deactivateConfig is gated');
             System.assert(clBlocked, 'cloneConfig is gated');
         }
-    }
-
-    private static User makeStandardUser() {
-        Profile p = [SELECT Id FROM Profile WHERE Name = 'Standard User' LIMIT 1];
-        String uniq = 'tscfg' + String.valueOf(DateTime.now().getTime()) + '@turbodocx.example.invalid';
-        User u = new User(Alias = 'tscfg', Email = 'tscfg@turbodocx.example.invalid', EmailEncodingKey = 'UTF-8',
-            LastName = 'Tester', LanguageLocaleKey = 'en_US', LocaleSidKey = 'en_US', TimeZoneSidKey = 'America/New_York',
-            ProfileId = p.Id, Username = uniq);
-        insert u;
-        return u;
     }
 
     private static void grantConfigAdmin(Id userId) {
@@ -402,44 +392,6 @@ private class TurboSignConfigControllerTest {
         System.assert(foundSig, 'signature field rule round-tripped');
     }
 
-    // The example config must look exactly like a setup built in TurboSign Setup: the signing spots are
-    // field rules only (no anchor variables), with the builder's defaults (no size, date optional).
-    @IsTest
-    static void exampleMatchesWhatTurboSignSetupBuilds() {
-        Map<String, Object> cfg = TurboSignConfigController.getConfig('Example_Agreement');
-
-        Set<String> placeholders = new Set<String>();
-        for (Object o : (List<Object>) cfg.get('variables')) placeholders.add((String) ((Map<String, Object>) o).get('placeholder'));
-        System.assertEquals(new Set<String>{ '{ClientName}', '{EffectiveDate}' }, placeholders,
-            'only the values a rep sees are variables; signing spots are not');
-
-        Map<String, Map<String, Object>> byAnchor = new Map<String, Map<String, Object>>();
-        for (Object o : (List<Object>) cfg.get('fields')) {
-            Map<String, Object> f = (Map<String, Object>) o;
-            byAnchor.put((String) f.get('anchor'), f);
-        }
-        System.assertEquals(new Set<String>{ '{sig}', '{date}' }, byAnchor.keySet(), 'one field rule per signing spot');
-        System.assertEquals('signature', byAnchor.get('{sig}').get('type'));
-        System.assertEquals(true, byAnchor.get('{sig}').get('required'), 'the builder requires signature fields');
-        System.assertEquals('Signer', byAnchor.get('{sig}').get('role'));
-        System.assertEquals('date', byAnchor.get('{date}').get('type'));
-        System.assertEquals(false, byAnchor.get('{date}').get('required'), 'the builder defaults other fields to optional');
-        System.assertEquals('Signer', byAnchor.get('{date}').get('role'));
-
-        List<Object> recips = (List<Object>) cfg.get('recipients');
-        System.assertEquals(1, recips.size());
-        Map<String, Object> signer = (Map<String, Object>) recips[0];
-        System.assertEquals('Signer', signer.get('role'));
-        System.assertEquals('Owner.Name', signer.get('nameField'));
-        System.assertEquals('Owner.Email', signer.get('emailField'));
-
-        for (TurboSign_Field_Rule__mdt f : [SELECT Anchor__c, Width__c, Height__c FROM TurboSign_Field_Rule__mdt
-                WHERE Config__r.DeveloperName = 'Example_Agreement']) {
-            System.assertEquals(null, f.Width__c, f.Anchor__c + ': the builder writes no width');
-            System.assertEquals(null, f.Height__c, f.Anchor__c + ': the builder writes no height');
-        }
-    }
-
     // Saving the example in TurboSign Setup must overwrite the deployed records, not add a second set
     // beside them. So the deployed records carry exactly the names, labels and values Setup writes for
     // the same setup. The payload is written out here, not read back from the org, so it is an
@@ -463,14 +415,12 @@ private class TurboSignConfigControllerTest {
         List<Metadata.CustomMetadata> expected = TurboSignConfigController.buildMetadataRecords(payload);
 
         Map<String, Set<String>> deployedByType = new Map<String, Set<String>>{
-            'TurboSign_Variable_Mapping' => new Set<String>(), 'TurboSign_Recipient_Rule' => new Set<String>(),
-            'TurboSign_Field_Rule' => new Set<String>() };
-        for (TurboSign_Variable_Mapping__mdt r : [SELECT DeveloperName FROM TurboSign_Variable_Mapping__mdt WHERE Config__r.DeveloperName = 'Example_Agreement'])
-            deployedByType.get('TurboSign_Variable_Mapping').add(r.DeveloperName);
-        for (TurboSign_Recipient_Rule__mdt r : [SELECT DeveloperName FROM TurboSign_Recipient_Rule__mdt WHERE Config__r.DeveloperName = 'Example_Agreement'])
-            deployedByType.get('TurboSign_Recipient_Rule').add(r.DeveloperName);
-        for (TurboSign_Field_Rule__mdt r : [SELECT DeveloperName FROM TurboSign_Field_Rule__mdt WHERE Config__r.DeveloperName = 'Example_Agreement'])
-            deployedByType.get('TurboSign_Field_Rule').add(r.DeveloperName);
+            'TurboSign_Variable_Mapping' => exampleChildNames([SELECT DeveloperName, Active__c FROM TurboSign_Variable_Mapping__mdt
+                WHERE Config__r.DeveloperName = 'Example_Agreement']),
+            'TurboSign_Recipient_Rule' => exampleChildNames([SELECT DeveloperName, Active__c FROM TurboSign_Recipient_Rule__mdt
+                WHERE Config__r.DeveloperName = 'Example_Agreement']),
+            'TurboSign_Field_Rule' => exampleChildNames([SELECT DeveloperName, Active__c FROM TurboSign_Field_Rule__mdt
+                WHERE Config__r.DeveloperName = 'Example_Agreement']) };
 
         Map<String, Set<String>> expectedByType = new Map<String, Set<String>>{
             'TurboSign_Variable_Mapping' => new Set<String>(), 'TurboSign_Recipient_Rule' => new Set<String>(),
@@ -481,14 +431,39 @@ private class TurboSignConfigControllerTest {
         }
         System.assertEquals(expectedByType, deployedByType, 'the deployed children are the ones Setup writes, and no others');
 
-        for (Metadata.CustomMetadata md : expected) assertDeployedMatches(md);
+        Set<String> types = new Set<String>();
+        for (Metadata.CustomMetadata md : expected) types.add(md.fullName.substringBefore('.') + '__mdt');
+        Map<String, Map<String, Schema.SObjectField>> fieldsByType = new Map<String, Map<String, Schema.SObjectField>>();
+        for (Schema.DescribeSObjectResult d : Schema.describeSObjects(new List<String>(types)))
+            fieldsByType.put(d.getName(), d.fields.getMap());
+        for (Metadata.CustomMetadata md : expected)
+            assertDeployedMatches(md, fieldsByType.get(md.fullName.substringBefore('.') + '__mdt'));
+    }
+
+    // TurboSign Setup deactivates a row it no longer needs and never deletes it, and a deploy of the
+    // example does not delete it either. So an admin who added a field to the example in Setup and took
+    // it out again leaves an inactive row behind, which must not fail the next deploy's tests.
+    @IsTest
+    static void exampleChildNamesIgnoreInactiveRows() {
+        List<TurboSign_Field_Rule__mdt> rows = (List<TurboSign_Field_Rule__mdt>) JSON.deserialize(
+            '[{"DeveloperName":"Example_Agreement_sig","Active__c":true},'
+            + '{"DeveloperName":"Example_Agreement_initials","Active__c":false}]',
+            List<TurboSign_Field_Rule__mdt>.class);
+        System.assertEquals(new Set<String>{ 'Example_Agreement_sig' }, exampleChildNames(rows),
+            'only active rows count');
+    }
+
+    /** The names of the example's active child records; Setup deactivates rows, it never deletes them. */
+    private static Set<String> exampleChildNames(List<SObject> rows) {
+        Set<String> names = new Set<String>();
+        for (SObject r : rows) if (r.get('Active__c') == true) names.add((String) r.get('DeveloperName'));
+        return names;
     }
 
     /** The deployed record named md.fullName has md's label and values, and defaults for what Setup leaves out. */
-    private static void assertDeployedMatches(Metadata.CustomMetadata md) {
+    private static void assertDeployedMatches(Metadata.CustomMetadata md, Map<String, Schema.SObjectField> fields) {
         String sobj = md.fullName.substringBefore('.') + '__mdt';
         String dev = md.fullName.substringAfter('.');
-        Map<String, Schema.SObjectField> fields = Schema.getGlobalDescribe().get(sobj).getDescribe().fields.getMap();
         List<String> custom = new List<String>();
         Map<String, Object> defaults = new Map<String, Object>();
         for (Schema.SObjectField f : fields.values()) {

@@ -20,3 +20,6 @@ authFile*.json
 
 # Local personal settings (permission allow-rules)
 .claude/settings.local.json
+
+# Built by the example upgrade in unpackaged/README.md
+example-upgrade/

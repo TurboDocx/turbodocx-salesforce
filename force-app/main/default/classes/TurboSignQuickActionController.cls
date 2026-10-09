@@ -140,9 +140,15 @@ public with sharing class TurboSignQuickActionController {
             throw new AuraHandledException('You do not have permission to void this envelope.');
         }
         TurboSignActionUtil.requireEditAccess(new Set<Id>{ envelopeId });
+        TurboSign_Envelope__c voided = new TurboSign_Envelope__c(Id = envelopeId, Status__c = 'voided',
+            Voided_On__c = System.now(), Void_Reason__c = reason, Sync_Active__c = false);
+        // The write runs as the user, like the Flow action. Check the fields first so a user who can't
+        // write them is refused before TurboDocx voids the document.
+        if (!Security.stripInaccessible(AccessType.UPDATABLE, new List<SObject>{ voided }).getRemovedFields().isEmpty()) {
+            throw new AuraHandledException('You do not have permission to void this envelope.');
+        }
         String docId = TurboSignActionUtil.docIdsForEnvelopes(new Set<Id>{ envelopeId }).get(envelopeId);
         TurboSignHttpClient.voidDocument(docId, reason);
-        update new TurboSign_Envelope__c(Id = envelopeId, Status__c = 'voided',
-            Voided_On__c = System.now(), Void_Reason__c = reason, Sync_Active__c = false);
+        update as user voided;
     }
 }

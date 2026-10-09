@@ -171,16 +171,24 @@ private class TurboSignActionsTest {
         }
     }
 
-    // A rep can read another user's record but not edit it, so remind/void on an envelope that belongs
-    // to one is refused, while the same rep can act on an envelope for a record the rep owns.
+    // A rep can read a record but not edit it, so remind/void on an envelope that belongs to one is
+    // refused, while the same rep can act on an envelope for a record the rep owns. The read-only record
+    // is a Product: Standard User reads products but cannot edit them, whatever the org's sharing
+    // defaults (an Account would be editable in an org where Account access is Public Read/Write).
     @IsTest
     static void remindAndVoidFollowTheRepsEditAccess() {
-        Id adminId = UserInfo.getUserId();
-        System.runAs(TurboSignTestRep.user()) {
+        Product2 product = new Product2(Name = 'Admin owned', IsActive = true);
+        insert product;
+        User rep = TurboSignTestRep.user();
+        UserRecordAccess access = [SELECT RecordId, HasReadAccess, HasEditAccess FROM UserRecordAccess
+            WHERE UserId = :rep.Id AND RecordId = :product.Id];
+        System.assertEquals(true, access.HasReadAccess, 'the rep can read the record');
+        System.assertEquals(false, access.HasEditAccess, 'the rep cannot edit the record');
+        System.runAs(rep) {
             Account mine = new Account(Name = 'Rep owned');
             insert mine;
             TurboSign_Envelope__c readOnly = new TurboSign_Envelope__c(Document_Name__c = 'T', Status__c = 'sent',
-                TurboDocx_Document_Id__c = 'doc-ro', Related_Record_Id__c = adminId);
+                TurboDocx_Document_Id__c = 'doc-ro', Related_Record_Id__c = product.Id);
             TurboSign_Envelope__c editable = new TurboSign_Envelope__c(Document_Name__c = 'T', Status__c = 'sent',
                 TurboDocx_Document_Id__c = 'doc-ed', Related_Record_Id__c = mine.Id);
             insert new List<TurboSign_Envelope__c>{ readOnly, editable };
@@ -198,5 +206,32 @@ private class TurboSignActionsTest {
             System.assertEquals('voided', [SELECT Status__c FROM TurboSign_Envelope__c WHERE Id = :editable.Id].Status__c,
                 'the rep can void an envelope for a record the rep can edit');
         }
+    }
+
+    // The panel's void writes as the rep, like the Flow action: a rep who cannot edit Void Reason does
+    // not get it written in system mode behind their back.
+    @IsTest
+    static void voidFromThePanelRespectsFieldLevelSecurity() {
+        User rep = TurboSignTestRep.user();
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            FieldPermissions fp = [SELECT Id FROM FieldPermissions WHERE Parent.Name = 'TurboSign_User'
+                AND Field = 'TurboSign_Envelope__c.Void_Reason__c'];
+            fp.PermissionsEdit = false;
+            update fp;
+        }
+        System.runAs(rep) {
+            TurboSign_Envelope__c e = makeEnvelope();
+            Test.setMock(HttpCalloutMock.class, new Mock());
+
+            Test.startTest();
+            Boolean blocked = false;
+            try { TurboSignQuickActionController.voidEnvelope(e.Id, 'Superseded'); } catch (Exception ex) { blocked = true; }
+            Test.stopTest();
+
+            System.assert(blocked, 'a rep without edit on Void Reason cannot void from the panel');
+        }
+        TurboSign_Envelope__c after = [SELECT Status__c, Void_Reason__c FROM TurboSign_Envelope__c LIMIT 1];
+        System.assertEquals('sent', after.Status__c, 'not voided locally');
+        System.assertEquals(null, after.Void_Reason__c, 'Void Reason not written in system mode');
     }
 }

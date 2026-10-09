@@ -81,9 +81,11 @@ Install methods:
 
    `unpackaged/` holds an example setup (a Service Agreement sent from an Opportunity) that the Apex
    tests build their sends from, so deploy it with the package: without it, a deploy that runs the
-   tests fails. The example is active after the deploy and shows in the document picker. To hide it,
-   open **TurboSign Setup**, load the example, and click **Deactivate**. A later test run needs it
-   active again: deploy `unpackaged` again (its records set Active to true). See the
+   tests fails. The example is active after the deploy and shows in the document picker. Every deploy
+   that includes `unpackaged` puts the example back as shipped (placeholder template, active), so don't
+   edit it: in **TurboSign Setup**, **Duplicate** it and change the copy. To upgrade an org that has
+   records from an older version of the example, use the single deploy command in
+   [unpackaged/README.md](unpackaged/README.md). See the
    [install guide](https://docs.turbodocx.com/docs/Integrations/turbosign-for-salesforce/install).
 
    Production deploys run Apex tests and need 75% coverage. Upgrades and uninstall are manual.

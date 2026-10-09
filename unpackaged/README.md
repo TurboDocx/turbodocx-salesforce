@@ -35,45 +35,60 @@ needs migrating: the role is only a label that links the recipient rule to its f
 use `Signer`.
 
 **The example sends to the Opportunity's owner**, so you can test the full flow on yourself. For real
-sends, point the signer's name and email paths at a field on your record that leads to the customer.
-For example, with a custom Contact lookup on Opportunity, use `Contact__r.Name` and `Contact__r.Email`.
+sends, on your copy (see below), point the signer's name and email paths at a field on your record that
+leads to the customer. For example, with a custom Contact lookup on Opportunity, use `Contact__r.Name` and `Contact__r.Email`.
 
 ## Set it up
 
-1. In TurboDocx, go to **Templates**, upload `sample/Service Agreement.docx`, and copy its template ID.
-   The sample is a short agreement that holds `{ClientName}`, `{EffectiveDate}`, `{sig}` and `{date}`.
-2. Paste the template ID into `Deliverable_Template_Id__c` in
-   `main/default/customMetadata/TurboSign_Config.Example_Agreement.md-meta.xml`. You can also deploy
-   first and set the template in TurboSign Setup afterwards.
-3. Deploy the records:
+1. Deploy the package and the records as shipped:
 
    ```bash
-   sf project deploy start --source-dir unpackaged --target-org <your-org>
+   sf project deploy start --source-dir force-app --source-dir unpackaged --target-org <your-org>
    ```
 
    A plain `sf project deploy start` skips this folder, because `unpackaged/` is not a package
    directory. Name it with `--source-dir`.
+2. In TurboDocx, go to **Templates**, upload `sample/Service Agreement.docx`, and copy its template ID.
+   The sample is a short agreement that holds `{ClientName}`, `{EffectiveDate}`, `{sig}` and `{date}`.
+3. In **TurboSign Setup**, open the example, click **Duplicate**, and set the template ID on the copy.
 
-The Apex tests mock every callout, so they pass with the placeholder template ID. A real send needs a
-real template ID.
+The Apex tests mock every callout, so they pass with the example's placeholder template ID. A real send
+needs a real template ID, which is why you send from the copy.
 
-## Remove records from an older version of this example
+## Don't edit the example; copy it
+
+Deploy `unpackaged/` for the first install and whenever you deploy with Apex tests (every production
+deploy runs them): the tests check that the example is exactly as shipped. Each of those deploys puts
+the example back as shipped, so it undoes any change you made to it in TurboSign Setup, such as the
+template ID or deactivating it.
+
+To use the example for real sends, open it in **TurboSign Setup**, click **Duplicate**, and set your
+template and recipients on the copy. Leave the example itself as it is.
+
+## Upgrade an org that has an older version of this example
 
 Older versions of this example used other record names: `Example_SignatureAnchor`, `Example_DateAnchor`,
 `Example_ClientName` and `Example_EffectiveDate` (variables), `Example_Client` (recipient rule), and
 `Example_ClientSig` and `Example_ClientDate` (field rules). Deploying the current records does not delete
-them, and the old ones would still be read as part of `Example_Agreement`. After you deploy the current
-records, run:
+them, and the old ones are still read as part of `Example_Agreement`, so the tests fail and the deploy
+rolls back. Upgrade with one deploy that deletes the old records first and then deploys the package and
+the example:
 
 ```bash
-sf project deploy start \
-  --manifest unpackaged/destructive/package.xml \
-  --post-destructive-changes unpackaged/destructive/destructiveChanges.xml \
-  --ignore-warnings \
-  --target-org <your-org>
+rm -rf example-upgrade
+sf project convert source --source-dir force-app --source-dir unpackaged --output-dir example-upgrade
+cp unpackaged/destructive/destructiveChangesPre.xml example-upgrade/
+sf project deploy start --metadata-dir example-upgrade --ignore-warnings --target-org <your-org>
 ```
 
-`package.xml` is empty on purpose: the deploy needs a manifest, and this one only deletes. Your org
-probably has only some of the old records. `--ignore-warnings` lets the deploy delete the ones that exist
-and skip the rest; without it, any missing record ("No CustomMetadata named ...") fails the whole deploy
-and nothing is deleted.
+The first three commands only build the deploy in `example-upgrade/` (git ignores it); the last
+is the deploy, and it runs the Apex tests in production. `destructiveChangesPre.xml` lists the old
+names, and the deploy deletes them before it deploys the new records, so the tests never see them. Your
+org probably has only some of the old records. `--ignore-warnings` lets the deploy delete the ones that
+exist and skip the rest; without it, any missing record ("No CustomMetadata named ...") fails the whole
+deploy.
+
+Why not `--pre-destructive-changes` with `--source-dir`? The CLI accepts that flag only with
+`--manifest`, and a manifest can't name the records in `unpackaged/`, because it is not a package
+directory: the deploy fails with "was named in package.xml, but was not found". A deploy from a
+Metadata API folder carries `destructiveChangesPre.xml` inside it instead.

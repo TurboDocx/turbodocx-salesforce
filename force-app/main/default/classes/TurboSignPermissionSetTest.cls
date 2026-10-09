@@ -14,17 +14,52 @@ private class TurboSignPermissionSetTest {
     }
 
     // Access tests run as TurboSignTestRep.user(), so it must be a real rep: not the admin running the
-    // tests, a Standard User profile, and TurboSign User as its only TurboSign access.
+    // tests, the Standard User profile, and TurboSign User as its only TurboSign access.
     @IsTest
     static void testRepIsAStandardUserWithTheUserPermissionSet() {
         User rep = TurboSignTestRep.user();
         System.assertNotEquals(UserInfo.getUserId(), rep.Id, 'not the admin running the tests');
-        System.assertEquals('Standard User', [SELECT Profile.Name FROM User WHERE Id = :rep.Id].Profile.Name);
+        assertStandardUserProfile(rep.Id);
         System.assertEquals(1, [SELECT COUNT() FROM PermissionSetAssignment
             WHERE AssigneeId = :rep.Id AND PermissionSet.Name = 'TurboSign_User'], 'TurboSign User assigned');
         System.assertEquals(0, [SELECT COUNT() FROM PermissionSetAssignment
             WHERE AssigneeId = :rep.Id AND PermissionSet.Name = 'TurboSign_Admin'], 'no admin set');
         System.assertEquals(rep.Id, TurboSignTestRep.user().Id, 'reused within a test');
+    }
+
+    // The Standard User profile's name is translated in an org or for a user in another language, so the
+    // rep's profile must be found without its name: a user who reads profile names in French still gets
+    // a Standard User rep.
+    @IsTest
+    static void testRepIsFoundWithoutTheProfileName() {
+        User french = new User(ProfileId = UserInfo.getProfileId(),
+            Username = 'turbosign.fr.' + UserInfo.getOrganizationId() + '@example.com',
+            Email = 'turbosign.fr@example.com', LastName = 'Admin', Alias = 'tsfr',
+            TimeZoneSidKey = 'Europe/Paris', LocaleSidKey = 'fr_FR',
+            EmailEncodingKey = 'UTF-8', LanguageLocaleKey = 'fr');
+        insert french;
+        User rep;
+        System.runAs(french) { rep = TurboSignTestRep.user(); }
+        assertStandardUserProfile(rep.Id);
+    }
+
+    /** Standard User, identified by what it is, not by its (translated) name. */
+    private static void assertStandardUserProfile(Id userId) {
+        Id profileId = [SELECT ProfileId FROM User WHERE Id = :userId].ProfileId;
+        PermissionSet p = [SELECT IsCustom, Profile.UserType, Profile.UserLicense.LicenseDefinitionKey, PermissionsModifyAllData,
+                PermissionsViewAllData, PermissionsApiEnabled, PermissionsEditTask, PermissionsActivateContract,
+                PermissionsImportLeads, PermissionsManageSolutions
+            FROM PermissionSet WHERE IsOwnedByProfile = true AND ProfileId = :profileId];
+        System.assertEquals(false, p.IsCustom, 'a standard profile');
+        System.assertEquals('Standard', p.Profile.UserType, 'an internal user');
+        System.assertEquals('SFDC', p.Profile.UserLicense.LicenseDefinitionKey, 'the Salesforce license');
+        System.assertEquals(false, p.PermissionsModifyAllData, 'not an admin');
+        System.assertEquals(false, p.PermissionsViewAllData, 'not an admin');
+        System.assertEquals(false, p.PermissionsActivateContract, 'not Contract Manager');
+        System.assertEquals(false, p.PermissionsImportLeads, 'not Marketing User');
+        System.assertEquals(false, p.PermissionsManageSolutions, 'not Solution Manager');
+        System.assertEquals(true, p.PermissionsApiEnabled, 'not Minimum Access');
+        System.assertEquals(true, p.PermissionsEditTask, 'not Read Only');
     }
 
     @IsTest

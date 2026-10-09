@@ -10,7 +10,7 @@ public class TurboSignTestRep {
 
     public static User user() {
         if (rep != null) return rep;
-        Id profileId = [SELECT Id FROM Profile WHERE Name = 'Standard User' LIMIT 1].Id;
+        Id profileId = standardUserProfileId();
         Id permSetId = [SELECT Id FROM PermissionSet WHERE Name = 'TurboSign_User' LIMIT 1].Id;
         String unique = UserInfo.getOrganizationId() + String.valueOf(Math.abs(Crypto.getRandomInteger()));
         User u = new User(
@@ -28,5 +28,21 @@ public class TurboSignTestRep {
         }
         rep = u;
         return rep;
+    }
+
+    /**
+     * The Standard User profile, found by what it is rather than by name: the name is translated for a
+     * user or an org in another language. It is the standard Salesforce-license profile for internal
+     * users that is not an admin and not one of the other standard profiles (Contract Manager, Marketing
+     * User, Solution Manager, Minimum Access, and Read Only, which can't edit tasks).
+     */
+    public static Id standardUserProfileId() {
+        return [SELECT ProfileId FROM PermissionSet
+            WHERE IsOwnedByProfile = true AND IsCustom = false
+            AND Profile.UserType = 'Standard' AND Profile.UserLicense.LicenseDefinitionKey = 'SFDC'
+            AND PermissionsModifyAllData = false AND PermissionsViewAllData = false
+            AND PermissionsApiEnabled = true AND PermissionsEditTask = true AND PermissionsActivateContract = false
+            AND PermissionsImportLeads = false AND PermissionsManageSolutions = false
+            LIMIT 1].ProfileId;
     }
 }
