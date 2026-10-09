@@ -62,5 +62,9 @@ private class TurboSignServiceTest {
             'request stamps integrationName=salesforce so the backend completion callback fires: ' + body);
         System.assert(body.contains(String.valueOf(o.Id)),
             'request carries the Salesforce record id as the write-back target: ' + body);
+        Map<String, Object> parsed = (Map<String, Object>) JSON.deserializeUntyped(body);
+        Map<String, Object> im = (Map<String, Object>) parsed.get('integrationMetadata');
+        System.assertEquals(UserInfo.getOrganizationId(), (String) im.get('salesforceOrgId'),
+            'request carries the 18-char org id so the backend matches the right Salesforce connection: ' + body);
     }
 }

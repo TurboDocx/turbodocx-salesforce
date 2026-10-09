@@ -26,7 +26,9 @@ public with sharing class TurboSignService {
     private static Map<String, Object> integrationMetadata(SendRequest req) {
         Map<String, Object> m = new Map<String, Object>{
             'integrationName'    => 'salesforce',
-            'salesforceRecordId' => String.valueOf(req.recordId)
+            'salesforceRecordId' => String.valueOf(req.recordId),
+            // 18-char org id: the backend matches the TurboDocx Salesforce connection by org id.
+            'salesforceOrgId'    => UserInfo.getOrganizationId()
         };
         if (String.isNotBlank(req.completionField)) {
             m.put('salesforceObjectType', req.recordId.getSObjectType().getDescribe().getName());
