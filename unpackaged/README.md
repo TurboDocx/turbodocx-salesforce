@@ -12,3 +12,7 @@ sample seed. If a custom metadata record deploy fails in your org, create the re
 Setup > Custom Metadata Types > Manage Records > New instead.
 
 Recipient email resolves from `Owner.Email` (the Opportunity owner) so no custom email field is needed.
+
+The template holds the signing spots as plain tokens, `{sig}` and `{date}`, the same way a setup built
+in TurboSign Setup does: each has a field rule, and the send fills the token in so it survives the merge.
+The only values a rep sees are `{ClientName}` and `{EffectiveDate}`.
