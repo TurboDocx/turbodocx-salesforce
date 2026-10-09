@@ -1,0 +1,10 @@
+{
+  "name": "turbosign-salesforce",
+  "private": true,
+  "scripts": {
+    "test": "sfdx-lwc-jest"
+  },
+  "devDependencies": {
+    "@salesforce/sfdx-lwc-jest": "7.9.0"
+  }
+}

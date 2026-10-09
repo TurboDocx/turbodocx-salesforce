@@ -76,8 +76,15 @@ Install methods:
 2. **Deploy from source.** A developer deploys with the Salesforce CLI:
 
    ```bash
-   sf project deploy start --source-dir force-app --target-org <alias>
+   sf project deploy start --source-dir force-app --source-dir unpackaged --target-org <alias>
    ```
+
+   `unpackaged/` holds an example setup (a Service Agreement sent from an Opportunity) that the Apex
+   tests build their sends from, so deploy it with the package: without it, a deploy that runs the
+   tests fails. The example is active after the deploy and shows in the document picker. To hide it,
+   open **TurboSign Setup**, load the example, and click **Deactivate**. A later test run needs it
+   active again: deploy `unpackaged` again (its records set Active to true). See the
+   [install guide](https://docs.turbodocx.com/docs/Integrations/turbosign-for-salesforce/install).
 
    Production deploys run Apex tests and need 75% coverage. Upgrades and uninstall are manual.
 
@@ -100,6 +107,8 @@ sf project deploy start --source-dir force-app --target-org myorg
 sf project deploy start --source-dir unpackaged --target-org myorg
 sf apex run test --test-level RunLocalTests --code-coverage --target-org myorg --wait 30
 ```
+
+Lightning web component tests run locally with Jest: `npm install`, then `npm test`.
 
 ## Contributing
 

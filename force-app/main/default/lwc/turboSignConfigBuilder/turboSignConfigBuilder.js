@@ -609,7 +609,7 @@ export default class TurboSignConfigBuilder extends LightningElement {
             if (outcome === 'Failed') {
                 this.toast('Deactivate failed', this.deployError || 'Could not deactivate.', 'error');
             } else {
-                this.toast('Configuration deactivated', `"${name}" was removed from the document picker. Reactivate it by loading it and saving.`, 'success');
+                this.toast('Configuration deactivated', `"${name}" was removed from the document picker. To bring it back, redeploy its records with Active set to true, or recreate it.`, 'success');
                 if (this._wiredConfigs) refreshApex(this._wiredConfigs);
                 this.confirmingDeactivate = false;
                 this.resetForm();
