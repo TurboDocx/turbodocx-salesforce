@@ -56,26 +56,27 @@ public with sharing class TurboSignRecipientSync {
 
         // Recipient_Count__c and Signed_Count__c are roll-up summaries over the (master-detail)
         // child recipients, so they recompute automatically from the upsert above — we only stamp
-        // the sync time here.
-        env.Last_Synced__c = System.now();
-        applyDocumentStatus(env, resp);
-        update as user env;
+        // the sync time here. Update only the fields the sync writes: the queried record also carries
+        // TurboDocx_Document_Id__c, which a rep can read but not edit, and `update as user` rejects it.
+        TurboSign_Envelope__c changes = new TurboSign_Envelope__c(Id = env.Id, Last_Synced__c = System.now());
+        applyDocumentStatus(env, changes, resp);
+        update as user changes;
         return records.size();
     }
 
     private static final Set<String> TERMINAL = new Set<String>{ 'completed', 'voided', 'expired' };
 
     /** Mirror the document's status onto the envelope; terminal states stamp completion and stop syncing. */
-    private static void applyDocumentStatus(TurboSign_Envelope__c env, Map<String, Object> resp) {
+    private static void applyDocumentStatus(TurboSign_Envelope__c env, TurboSign_Envelope__c changes, Map<String, Object> resp) {
         Object doc = (resp == null) ? null : resp.get('document');
         if (!(doc instanceof Map<String, Object>)) return;
         String status = str(((Map<String, Object>) doc).get('status'));
         if (String.isBlank(status)) return;
         status = status.toLowerCase();
         if (!new Set<String>{ 'sent', 'under_review', 'completed', 'voided', 'expired' }.contains(status)) return;
-        env.Status__c = status;
-        if (TERMINAL.contains(status)) env.Sync_Active__c = false;
-        if (status == 'completed' && env.Completed_On__c == null) env.Completed_On__c = System.now();
+        changes.Status__c = status;
+        if (TERMINAL.contains(status)) changes.Sync_Active__c = false;
+        if (status == 'completed' && env.Completed_On__c == null) changes.Completed_On__c = System.now();
     }
 
     // ---- helpers ----

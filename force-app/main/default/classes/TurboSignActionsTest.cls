@@ -170,4 +170,33 @@ private class TurboSignActionsTest {
             System.assertEquals('sent', [SELECT Status__c FROM TurboSign_Envelope__c WHERE Id = :e.Id].Status__c, 'not voided');
         }
     }
+
+    // A rep can read another user's record but not edit it, so remind/void on an envelope that belongs
+    // to one is refused, while the same rep can act on an envelope for a record the rep owns.
+    @IsTest
+    static void remindAndVoidFollowTheRepsEditAccess() {
+        Id adminId = UserInfo.getUserId();
+        System.runAs(TurboSignTestRep.user()) {
+            Account mine = new Account(Name = 'Rep owned');
+            insert mine;
+            TurboSign_Envelope__c readOnly = new TurboSign_Envelope__c(Document_Name__c = 'T', Status__c = 'sent',
+                TurboDocx_Document_Id__c = 'doc-ro', Related_Record_Id__c = adminId);
+            TurboSign_Envelope__c editable = new TurboSign_Envelope__c(Document_Name__c = 'T', Status__c = 'sent',
+                TurboDocx_Document_Id__c = 'doc-ed', Related_Record_Id__c = mine.Id);
+            insert new List<TurboSign_Envelope__c>{ readOnly, editable };
+            Test.setMock(HttpCalloutMock.class, new Mock());
+
+            Test.startTest();
+            Integer blocked = 0;
+            try { TurboSignQuickActionController.voidEnvelope(readOnly.Id, 'x'); } catch (AuraHandledException ex) { blocked++; }
+            try { TurboSignQuickActionController.remind(readOnly.Id); } catch (AuraHandledException ex) { blocked++; }
+            TurboSignQuickActionController.voidEnvelope(editable.Id, 'Superseded');
+            Test.stopTest();
+
+            System.assertEquals(2, blocked, 'read-only access to the related record is not enough');
+            System.assertEquals('sent', [SELECT Status__c FROM TurboSign_Envelope__c WHERE Id = :readOnly.Id].Status__c);
+            System.assertEquals('voided', [SELECT Status__c FROM TurboSign_Envelope__c WHERE Id = :editable.Id].Status__c,
+                'the rep can void an envelope for a record the rep can edit');
+        }
+    }
 }

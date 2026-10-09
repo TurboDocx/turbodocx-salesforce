@@ -13,6 +13,20 @@ private class TurboSignPermissionSetTest {
         return [SELECT COUNT() FROM SetupEntityAccess WHERE ParentId = :permSetId(permSet) AND SetupEntityId = :cls];
     }
 
+    // Access tests run as TurboSignTestRep.user(), so it must be a real rep: not the admin running the
+    // tests, a Standard User profile, and TurboSign User as its only TurboSign access.
+    @IsTest
+    static void testRepIsAStandardUserWithTheUserPermissionSet() {
+        User rep = TurboSignTestRep.user();
+        System.assertNotEquals(UserInfo.getUserId(), rep.Id, 'not the admin running the tests');
+        System.assertEquals('Standard User', [SELECT Profile.Name FROM User WHERE Id = :rep.Id].Profile.Name);
+        System.assertEquals(1, [SELECT COUNT() FROM PermissionSetAssignment
+            WHERE AssigneeId = :rep.Id AND PermissionSet.Name = 'TurboSign_User'], 'TurboSign User assigned');
+        System.assertEquals(0, [SELECT COUNT() FROM PermissionSetAssignment
+            WHERE AssigneeId = :rep.Id AND PermissionSet.Name = 'TurboSign_Admin'], 'no admin set');
+        System.assertEquals(rep.Id, TurboSignTestRep.user().Id, 'reused within a test');
+    }
+
     @IsTest
     static void repSetGrantsTheRepClassesButNotTheAdminController() {
         System.assertEquals(1, classAccess('TurboSign_User', 'TurboSignQuickActionController'), 'send modal + panel');

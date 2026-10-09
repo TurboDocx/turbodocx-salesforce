@@ -440,6 +440,87 @@ private class TurboSignConfigControllerTest {
         }
     }
 
+    // Saving the example in TurboSign Setup must overwrite the deployed records, not add a second set
+    // beside them. So the deployed records carry exactly the names, labels and values Setup writes for
+    // the same setup. The payload is written out here, not read back from the org, so it is an
+    // independent statement of the example's shape.
+    @IsTest
+    static void exampleRecordsAreExactlyWhatTurboSignSetupWrites() {
+        String payload = JSON.serialize(new Map<String, Object>{
+            'developerName' => 'Example_Agreement', 'label' => 'Example Agreement',
+            'sourceObject' => 'Opportunity', 'templateId' => 'REPLACE_WITH_YOUR_TEMPLATE_ID',
+            'documentName' => 'Service Agreement',
+            'variables' => new List<Object>{
+                new Map<String, Object>{ 'placeholder' => '{ClientName}', 'sourceField' => 'Account.Name', 'mimeType' => 'text' },
+                new Map<String, Object>{ 'placeholder' => '{EffectiveDate}', 'sourceField' => 'CloseDate', 'mimeType' => 'text' } },
+            'recipients' => new List<Object>{
+                new Map<String, Object>{ 'role' => 'Signer', 'nameField' => 'Owner.Name', 'emailField' => 'Owner.Email',
+                    'order' => 1, 'required' => true } },
+            'fields' => new List<Object>{
+                new Map<String, Object>{ 'anchor' => '{sig}', 'type' => 'signature', 'role' => 'Signer', 'required' => true, 'placement' => 'replace' },
+                new Map<String, Object>{ 'anchor' => '{date}', 'type' => 'date', 'role' => 'Signer', 'required' => false, 'placement' => 'replace' } }
+        });
+        List<Metadata.CustomMetadata> expected = TurboSignConfigController.buildMetadataRecords(payload);
+
+        Map<String, Set<String>> deployedByType = new Map<String, Set<String>>{
+            'TurboSign_Variable_Mapping' => new Set<String>(), 'TurboSign_Recipient_Rule' => new Set<String>(),
+            'TurboSign_Field_Rule' => new Set<String>() };
+        for (TurboSign_Variable_Mapping__mdt r : [SELECT DeveloperName FROM TurboSign_Variable_Mapping__mdt WHERE Config__r.DeveloperName = 'Example_Agreement'])
+            deployedByType.get('TurboSign_Variable_Mapping').add(r.DeveloperName);
+        for (TurboSign_Recipient_Rule__mdt r : [SELECT DeveloperName FROM TurboSign_Recipient_Rule__mdt WHERE Config__r.DeveloperName = 'Example_Agreement'])
+            deployedByType.get('TurboSign_Recipient_Rule').add(r.DeveloperName);
+        for (TurboSign_Field_Rule__mdt r : [SELECT DeveloperName FROM TurboSign_Field_Rule__mdt WHERE Config__r.DeveloperName = 'Example_Agreement'])
+            deployedByType.get('TurboSign_Field_Rule').add(r.DeveloperName);
+
+        Map<String, Set<String>> expectedByType = new Map<String, Set<String>>{
+            'TurboSign_Variable_Mapping' => new Set<String>(), 'TurboSign_Recipient_Rule' => new Set<String>(),
+            'TurboSign_Field_Rule' => new Set<String>() };
+        for (Metadata.CustomMetadata md : expected) {
+            String type = md.fullName.substringBefore('.');
+            if (expectedByType.containsKey(type)) expectedByType.get(type).add(md.fullName.substringAfter('.'));
+        }
+        System.assertEquals(expectedByType, deployedByType, 'the deployed children are the ones Setup writes, and no others');
+
+        for (Metadata.CustomMetadata md : expected) assertDeployedMatches(md);
+    }
+
+    /** The deployed record named md.fullName has md's label and values, and defaults for what Setup leaves out. */
+    private static void assertDeployedMatches(Metadata.CustomMetadata md) {
+        String sobj = md.fullName.substringBefore('.') + '__mdt';
+        String dev = md.fullName.substringAfter('.');
+        Map<String, Schema.SObjectField> fields = Schema.getGlobalDescribe().get(sobj).getDescribe().fields.getMap();
+        List<String> custom = new List<String>();
+        Map<String, Object> defaults = new Map<String, Object>();
+        for (Schema.SObjectField f : fields.values()) {
+            Schema.DescribeFieldResult d = f.getDescribe();
+            if (d.isCustom()) { custom.add(d.getName()); defaults.put(d.getName(), d.getDefaultValue()); }
+        }
+        String q = 'SELECT MasterLabel, ' + String.join(custom, ', ')
+            + (custom.contains('Config__c') ? ', Config__r.DeveloperName' : '')
+            + ' FROM ' + sobj + ' WHERE DeveloperName = :dev';
+        List<SObject> rows = Database.query(q);
+        System.assertEquals(1, rows.size(), md.fullName + ' is deployed');
+        SObject row = rows[0];
+        System.assertEquals(md.label, row.get('MasterLabel'), md.fullName + ' label');
+
+        Map<String, Object> written = new Map<String, Object>();
+        for (Metadata.CustomMetadataValue v : md.values) written.put(v.field, v.value);
+        System.assertEquals(true, written.get('Active__c'), md.fullName + ': Setup writes Active__c');
+        for (String f : custom) {
+            Object actual = f == 'Config__c' ? row.getSObject('Config__r').get('DeveloperName') : row.get(f);
+            if (!written.containsKey(f)) {
+                // Setup leaves the field out, so its deploy gets the field's default (or nothing).
+                Object dflt = defaults.get(f);
+                System.assert(actual == null || actual == dflt || (dflt == null && actual == false),
+                    md.fullName + '.' + f + ' is ' + actual + ', but Setup leaves it out (default ' + dflt + ')');
+            } else if (actual instanceof Decimal) {
+                System.assertEquals(Decimal.valueOf(String.valueOf(written.get(f))), (Decimal) actual, md.fullName + '.' + f);
+            } else {
+                System.assertEquals(written.get(f), actual, md.fullName + '.' + f);
+            }
+        }
+    }
+
     // ---- v2: getFieldOptions (drives the field pickers incl. reference traversal) ----
     @IsTest
     static void getFieldOptionsReturnsFieldsAndReferences() {

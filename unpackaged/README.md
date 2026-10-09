@@ -13,18 +13,26 @@ never ships to subscribers.
 | Record | What it does |
 | --- | --- |
 | `TurboSign_Config.Example_Agreement` | Opportunity, active, document name "Service Agreement", template id `REPLACE_WITH_YOUR_TEMPLATE_ID` |
-| `TurboSign_Variable_Mapping.Example_ClientName` | `{ClientName}` from `Account.Name` |
-| `TurboSign_Variable_Mapping.Example_EffectiveDate` | `{EffectiveDate}` with the default value "August 16, 2026" |
-| `TurboSign_Recipient_Rule.Example_Client` | role `Signer`, name from `Owner.Name`, email from `Owner.Email`, signing order 1, required |
-| `TurboSign_Field_Rule.Example_ClientSig` | `{sig}` is a signature field for `Signer`, required |
-| `TurboSign_Field_Rule.Example_ClientDate` | `{date}` is a date field for `Signer`, not required |
+| `TurboSign_Variable_Mapping.Example_Agreement_ClientName` | `{ClientName}` from `Account.Name` |
+| `TurboSign_Variable_Mapping.Example_Agreement_EffectiveDate` | `{EffectiveDate}` from the Opportunity's `CloseDate`, formatted for the sender's locale |
+| `TurboSign_Recipient_Rule.Example_Agreement_Signer` | role `Signer`, name from `Owner.Name`, email from `Owner.Email`, signing order 1, required |
+| `TurboSign_Field_Rule.Example_Agreement_sig` | `{sig}` is a signature field for `Signer`, required |
+| `TurboSign_Field_Rule.Example_Agreement_date` | `{date}` is a date field for `Signer`, not required |
 
-The records have the same shape as a setup built in TurboSign Setup:
+Every record is active.
+
+The records are exactly what TurboSign Setup writes for this setup: the same API names, labels and
+values. So if you open the example in TurboSign Setup and save it, Setup updates these records instead of
+adding a second set next to them.
 
 - The only values a rep sees are `{ClientName}` and `{EffectiveDate}`.
 - The signing spots `{sig}` and `{date}` sit in the template as plain tokens. Each one has a field rule,
   and the send fills the token in so it survives the merge.
 - Field rules carry no width or height. Signature fields are required, other fields are optional.
+
+The recipient role is `Signer`. Earlier pre-release versions of this example called it `Client`. Nothing
+needs migrating: the role is only a label that links the recipient rule to its field rules, and both
+use `Signer`.
 
 **The example sends to the Opportunity's owner**, so you can test the full flow on yourself. For real
 sends, point the signer's name and email paths at a field on your record that leads to the customer.
@@ -51,15 +59,21 @@ real template ID.
 
 ## Remove records from an older version of this example
 
-Older versions of this example used two extra variables, `Example_SignatureAnchor` and
-`Example_DateAnchor`. Deploying the current records does not delete them. If your org has them, run:
+Older versions of this example used other record names: `Example_SignatureAnchor`, `Example_DateAnchor`,
+`Example_ClientName` and `Example_EffectiveDate` (variables), `Example_Client` (recipient rule), and
+`Example_ClientSig` and `Example_ClientDate` (field rules). Deploying the current records does not delete
+them, and the old ones would still be read as part of `Example_Agreement`. After you deploy the current
+records, run:
 
 ```bash
 sf project deploy start \
   --manifest unpackaged/destructive/package.xml \
   --post-destructive-changes unpackaged/destructive/destructiveChanges.xml \
+  --ignore-warnings \
   --target-org <your-org>
 ```
 
-`package.xml` is empty on purpose: the deploy needs a manifest, and this one only deletes. If your org
-never had those records, the command fails with "No CustomMetadata named ..." and changes nothing.
+`package.xml` is empty on purpose: the deploy needs a manifest, and this one only deletes. Your org
+probably has only some of the old records. `--ignore-warnings` lets the deploy delete the ones that exist
+and skip the rest; without it, any missing record ("No CustomMetadata named ...") fails the whole deploy
+and nothing is deleted.

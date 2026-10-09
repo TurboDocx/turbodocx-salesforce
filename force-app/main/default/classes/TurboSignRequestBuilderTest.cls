@@ -206,6 +206,19 @@ private class TurboSignRequestBuilderTest {
         System.assertEquals('Owner.Name', r0.get('nameSource'), 'signer name source surfaced');
     }
 
+    // The example's {EffectiveDate} follows the Opportunity's close date, formatted for the user's locale.
+    @IsTest
+    static void exampleEffectiveDateIsTheCloseDate() {
+        Opportunity o = makeOpp();
+        Opportunity formatted = [SELECT FORMAT(CloseDate) fmt FROM Opportunity WHERE Id = :o.Id];
+        String expected = (String) formatted.get('fmt');
+        Test.startTest();
+        TurboSignService.SendRequest req = TurboSignRequestBuilder.build(o.Id, 'Example_Agreement');
+        Test.stopTest();
+        System.assertEquals(expected, byPlaceholder(req.variables, '{EffectiveDate}').get('text'),
+            '{EffectiveDate} comes from CloseDate');
+    }
+
     @IsTest
     static void buildAppliesSignerOverrides() {
         Opportunity o = makeOpp();

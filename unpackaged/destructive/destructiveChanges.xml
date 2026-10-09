@@ -1,7 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Package xmlns="http://soap.sforce.com/2006/04/metadata">
     <types>
+        <members>TurboSign_Field_Rule.Example_ClientDate</members>
+        <members>TurboSign_Field_Rule.Example_ClientSig</members>
+        <members>TurboSign_Recipient_Rule.Example_Client</members>
+        <members>TurboSign_Variable_Mapping.Example_ClientName</members>
         <members>TurboSign_Variable_Mapping.Example_DateAnchor</members>
+        <members>TurboSign_Variable_Mapping.Example_EffectiveDate</members>
         <members>TurboSign_Variable_Mapping.Example_SignatureAnchor</members>
         <name>CustomMetadata</name>
     </types>
