@@ -210,7 +210,7 @@ private class TurboSignRequestBuilderTest {
     static void buildAppliesSignerOverrides() {
         Opportunity o = makeOpp();
         Map<String, Map<String, String>> recOvr = new Map<String, Map<String, String>>{
-            'Client' => new Map<String, String>{ 'email' => 'override@example.com', 'name' => 'Override Person' } };
+            'Signer' => new Map<String, String>{ 'email' => 'override@example.com', 'name' => 'Override Person' } };
 
         Test.startTest();
         TurboSignService.SendRequest req = TurboSignRequestBuilder.build(o.Id, 'Example_Agreement', null, recOvr);

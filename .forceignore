@@ -5,3 +5,7 @@
 **/*.dup
 .sf/
 .sfdx/
+
+# Example setup extras: a sample template and a cleanup manifest, not metadata source
+unpackaged/sample/
+unpackaged/destructive/

@@ -391,15 +391,53 @@ private class TurboSignConfigControllerTest {
         List<Object> recips = (List<Object>) cfg.get('recipients');
         System.assertEquals(1, recips.size());
         System.assertEquals('Owner.Email', ((Map<String, Object>) recips[0]).get('emailField'));
-        System.assertEquals('Client', ((Map<String, Object>) recips[0]).get('role'));
+        System.assertEquals('Signer', ((Map<String, Object>) recips[0]).get('role'));
 
         List<Object> flds = (List<Object>) cfg.get('fields');
         Boolean foundSig = false;
         for (Object o : flds) {
             Map<String, Object> f = (Map<String, Object>) o;
-            if (f.get('anchor') == '{sig}') { foundSig = true; System.assertEquals('signature', f.get('type')); System.assertEquals('Client', f.get('role')); }
+            if (f.get('anchor') == '{sig}') { foundSig = true; System.assertEquals('signature', f.get('type')); System.assertEquals('Signer', f.get('role')); }
         }
         System.assert(foundSig, 'signature field rule round-tripped');
+    }
+
+    // The example config must look exactly like a setup built in TurboSign Setup: the signing spots are
+    // field rules only (no anchor variables), with the builder's defaults (no size, date optional).
+    @IsTest
+    static void exampleMatchesWhatTurboSignSetupBuilds() {
+        Map<String, Object> cfg = TurboSignConfigController.getConfig('Example_Agreement');
+
+        Set<String> placeholders = new Set<String>();
+        for (Object o : (List<Object>) cfg.get('variables')) placeholders.add((String) ((Map<String, Object>) o).get('placeholder'));
+        System.assertEquals(new Set<String>{ '{ClientName}', '{EffectiveDate}' }, placeholders,
+            'only the values a rep sees are variables; signing spots are not');
+
+        Map<String, Map<String, Object>> byAnchor = new Map<String, Map<String, Object>>();
+        for (Object o : (List<Object>) cfg.get('fields')) {
+            Map<String, Object> f = (Map<String, Object>) o;
+            byAnchor.put((String) f.get('anchor'), f);
+        }
+        System.assertEquals(new Set<String>{ '{sig}', '{date}' }, byAnchor.keySet(), 'one field rule per signing spot');
+        System.assertEquals('signature', byAnchor.get('{sig}').get('type'));
+        System.assertEquals(true, byAnchor.get('{sig}').get('required'), 'the builder requires signature fields');
+        System.assertEquals('Signer', byAnchor.get('{sig}').get('role'));
+        System.assertEquals('date', byAnchor.get('{date}').get('type'));
+        System.assertEquals(false, byAnchor.get('{date}').get('required'), 'the builder defaults other fields to optional');
+        System.assertEquals('Signer', byAnchor.get('{date}').get('role'));
+
+        List<Object> recips = (List<Object>) cfg.get('recipients');
+        System.assertEquals(1, recips.size());
+        Map<String, Object> signer = (Map<String, Object>) recips[0];
+        System.assertEquals('Signer', signer.get('role'));
+        System.assertEquals('Owner.Name', signer.get('nameField'));
+        System.assertEquals('Owner.Email', signer.get('emailField'));
+
+        for (TurboSign_Field_Rule__mdt f : [SELECT Anchor__c, Width__c, Height__c FROM TurboSign_Field_Rule__mdt
+                WHERE Config__r.DeveloperName = 'Example_Agreement']) {
+            System.assertEquals(null, f.Width__c, f.Anchor__c + ': the builder writes no width');
+            System.assertEquals(null, f.Height__c, f.Anchor__c + ': the builder writes no height');
+        }
     }
 
     // ---- v2: getFieldOptions (drives the field pickers incl. reference traversal) ----
