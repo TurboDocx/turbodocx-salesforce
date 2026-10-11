@@ -5,6 +5,6 @@
     "test": "sfdx-lwc-jest"
   },
   "devDependencies": {
-    "@salesforce/sfdx-lwc-jest": "7.9.0"
+    "@salesforce/sfdx-lwc-jest": "8.0.0"
   }
 }
