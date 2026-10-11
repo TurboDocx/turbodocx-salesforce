@@ -6,7 +6,7 @@
 
 **Send documents for e-signature from any Salesforce record and track the full signature lifecycle in place**
 
-[![Salesforce](https://img.shields.io/badge/Salesforce-Unlocked%20Package-00A1E0?logo=salesforce&logoColor=white)](https://developer.salesforce.com/docs/atlas.en-us.sfdx_dev.meta/sfdx_dev/sfdx_dev_unlocked_pkgs_intro.htm)
+[![Salesforce](https://img.shields.io/badge/Salesforce-Unlocked%20Package-00A1E0?logo=salesforce&logoColor=white)](https://developer.salesforce.com/docs/platform/sfdx-dev/guide/sfdx-dev-unlocked-pkg-whats-a-package.html)
 [![Apex](https://img.shields.io/badge/Apex-LWC-00A1E0?logo=salesforce&logoColor=white)](https://developer.salesforce.com/docs/platform/lwc/guide)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Us-7289DA?logo=discord&logoColor=white)](https://discord.gg/NYKwz4BcpX)
 [![GitHub Stars](https://img.shields.io/github/stars/TurboDocx/turbodocx-salesforce?style=social)](https://github.com/TurboDocx/turbodocx-salesforce)
