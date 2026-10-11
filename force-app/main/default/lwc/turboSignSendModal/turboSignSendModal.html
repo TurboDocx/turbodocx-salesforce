@@ -35,7 +35,7 @@
                 <div class="slds-var-m-top_medium slds-text-align_right">
                     <lightning-button label="Cancel" onclick={handleCancel} class="slds-var-m-right_x-small"></lightning-button>
                     <template lwc:if={hasConfigs}>
-                        <lightning-button variant="brand" label="Review" onclick={handleReview} disabled={reviewDisabled}></lightning-button>
+                        <lightning-button variant="brand" label="Review" data-id="review" onclick={handleReview} disabled={reviewDisabled}></lightning-button>
                     </template>
                 </div>
             </template>
@@ -49,8 +49,10 @@
                 </template>
 
                 <template lwc:else>
-                    <p class="slds-text-body_regular slds-var-m-bottom_medium">{intentLine}</p>
+                    <p class="slds-text-body_regular slds-var-m-bottom_small">{intentLine}</p>
 
+                    <lightning-tabset active-tab-value="details">
+                    <lightning-tab label="Details" value="details" data-id="details" onactive={handleDetailsTab}>
                     <!-- Fields: prefilled from the record, all editable (like the /generate variables view) -->
                     <template lwc:if={hasFields}>
                         <template for:each={fields} for:item="f">
@@ -134,6 +136,89 @@
                             </template>
                         </div>
                     </template>
+
+                    </lightning-tab>
+
+                    <!-- The document exactly as this send would generate it, rendered on demand. Edits mark it
+                         stale instead of re-rendering: every render creates a deliverable at TurboDocx. -->
+                    <lightning-tab label="Document" value="document" data-id="document" onactive={handleDocumentTab}>
+                        <template lwc:if={isMobileApp}>
+                            <div class="doc-state">
+                                <p data-id="phone-note" class="doc-state__text slds-text-body_regular">
+                                    Open this record on a computer to see the document before you send it.
+                                </p>
+                            </div>
+                        </template>
+                        <template lwc:elseif={viewerFailed}>
+                            <div class="doc-state">
+                                <p data-id="viewer-error" class="doc-state__text slds-text-body_regular slds-text-color_error">The document viewer couldn't load, so the preview isn't available. You can still send.</p>
+                            </div>
+                        </template>
+                        <template lwc:elseif={showViewerLoading}>
+                            <div class="doc-state" role="status">
+                                <div class="doc-state__spinner slds-is-relative">
+                                    <lightning-spinner alternative-text="Loading the document viewer" size="small"></lightning-spinner>
+                                </div>
+                                <p data-id="viewer-loading" class="doc-state__text slds-text-body_regular slds-text-color_weak">
+                                    Getting the document viewer ready.
+                                </p>
+                            </div>
+                        </template>
+                        <template lwc:elseif={previewing}>
+                            <div class="doc-state" role="status">
+                                <!-- The spinner gets its own box: its backdrop would otherwise wash out the message. -->
+                                <div class="doc-state__spinner slds-is-relative">
+                                    <lightning-spinner alternative-text="Rendering the document" size="small"></lightning-spinner>
+                                </div>
+                                <p data-id="rendering" class="doc-state__text slds-text-body_regular slds-text-color_weak">
+                                    Rendering the document with these details. This can take a minute or two.
+                                </p>
+                            </div>
+                        </template>
+                        <template lwc:elseif={previewErrorOnly}>
+                            <div class="doc-state">
+                                <p data-id="preview-error" class="slds-text-body_regular slds-text-color_error slds-var-m-bottom_small">{previewError}</p>
+                                <lightning-button data-id="retry-preview" label="Try again" onclick={handleRequestRender}></lightning-button>
+                            </div>
+                        </template>
+                        <template lwc:elseif={previewUrl}>
+                            <template lwc:if={previewError}>
+                                <div class="slds-var-m-bottom_x-small">
+                                    <p data-id="preview-error" class="slds-text-body_regular slds-text-color_error slds-var-m-bottom_x-small">{previewError}</p>
+                                    <lightning-button data-id="retry-preview" label="Try again" onclick={handleRequestRender}></lightning-button>
+                                </div>
+                            </template>
+                            <template lwc:elseif={showStaleNotice}>
+                                <div data-id="stale" class="slds-scoped-notification slds-scoped-notification_light slds-media slds-media_center slds-var-m-bottom_x-small" role="status">
+                                    <div class="slds-media__figure">
+                                        <lightning-icon icon-name="utility:info" size="x-small"></lightning-icon>
+                                    </div>
+                                    <div class="slds-media__body">
+                                        <p class="slds-text-body_small">Your edits aren't in this preview yet.</p>
+                                    </div>
+                                    <div class="slds-no-flex">
+                                        <lightning-button data-id="update-preview" label="Update preview" onclick={handleRequestRender}></lightning-button>
+                                    </div>
+                                </div>
+                            </template>
+                            <template lwc:if={viewerTimedOut}>
+                                <div class="doc-state">
+                                    <p data-id="viewer-timeout" class="doc-state__text slds-text-body_regular slds-text-color_error slds-var-m-bottom_small">The document couldn't be shown here. Use Open in a new tab to see it.</p>
+                                    <template lwc:if={showRetryViewer}>
+                                        <lightning-button data-id="retry-viewer" label="Try again" onclick={handleRetryViewer}></lightning-button>
+                                    </template>
+                                </div>
+                            </template>
+                            <template lwc:elseif={showViewerFrame}>
+                                <iframe data-id="pdf" class={frameClass} tabindex="0" src={viewerFrameSrc} title={previewFileName}
+                                    onfocus={handleFrameFocus} onblur={handleFrameBlur}></iframe>
+                            </template>
+                            <div class="slds-text-body_small slds-text-align_right slds-var-m-top_xx-small">
+                                <a data-id="open-pdf" href={previewUrl} target="_blank" rel="noopener">Open in a new tab</a>
+                            </div>
+                        </template>
+                    </lightning-tab>
+                    </lightning-tabset>
 
                     <div class="slds-var-m-top_medium slds-text-align_right">
                         <lightning-button label="Back" onclick={handleBack} class="slds-var-m-right_x-small" disabled={sending}></lightning-button>

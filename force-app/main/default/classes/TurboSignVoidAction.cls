@@ -9,7 +9,8 @@ public with sharing class TurboSignVoidAction {
     public static List<Output> run(List<Input> inputs) {
         Set<Id> ids = new Set<Id>();
         for (Input inp : inputs) ids.add(inp.envelopeId);
-        TurboSignActionUtil.requireEditAccess(ids);
+        // Refuse before any callout, so TurboDocx never voids a document this user can't mark voided here.
+        TurboSignActionUtil.requireVoidAccess(ids);
         Map<Id, String> docs = TurboSignActionUtil.docIdsForEnvelopes(ids);
         List<Output> outs = new List<Output>();
         List<TurboSign_Envelope__c> toUpdate = new List<TurboSign_Envelope__c>();
@@ -17,8 +18,7 @@ public with sharing class TurboSignVoidAction {
             Output o = new Output();
             try {
                 TurboSignHttpClient.voidDocument(docs.get(inp.envelopeId), inp.reason);
-                toUpdate.add(new TurboSign_Envelope__c(Id = inp.envelopeId, Status__c = 'voided',
-                    Voided_On__c = System.now(), Void_Reason__c = inp.reason, Sync_Active__c = false));
+                toUpdate.add(TurboSignActionUtil.voided(inp.envelopeId, inp.reason));
                 o.status = 'voided';
             } catch (Exception e) { o.status = 'error: ' + e.getMessage(); }
             outs.add(o);

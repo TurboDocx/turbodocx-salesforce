@@ -9,7 +9,7 @@
 [![Salesforce](https://img.shields.io/badge/Salesforce-Unlocked%20Package-00A1E0?logo=salesforce&logoColor=white)](https://developer.salesforce.com/docs/atlas.en-us.sfdx_dev.meta/sfdx_dev/sfdx_dev_unlocked_pkgs_intro.htm)
 [![Apex](https://img.shields.io/badge/Apex-LWC-00A1E0?logo=salesforce&logoColor=white)](https://developer.salesforce.com/docs/platform/lwc/guide)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Us-7289DA?logo=discord&logoColor=white)](https://discord.gg/NYKwz4BcpX)
-[![GitHub Stars](https://img.shields.io/github/stars/TurboDocx/turbosign-salesforce?style=social)](https://github.com/TurboDocx/turbosign-salesforce)
+[![GitHub Stars](https://img.shields.io/github/stars/TurboDocx/turbodocx-salesforce?style=social)](https://github.com/TurboDocx/turbodocx-salesforce)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![X](https://img.shields.io/badge/X-@TurboDocx-000?logo=x&logoColor=white)](https://twitter.com/TurboDocx)
 
@@ -70,7 +70,7 @@ Install methods:
 
 1. **Install link (unlocked package).** Any Salesforce admin opens the link, logs in, and picks
    **Install for Admins Only** (then assign the permission sets). Links for the latest version are on
-   the [Releases](https://github.com/TurboDocx/turbosign-salesforce/releases) page; v1.0.0:
+   the [Releases](https://github.com/TurboDocx/turbodocx-salesforce/releases) page; v1.0.0:
    [production or Developer Edition](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tbm000000mtqDAAQ), [sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tbm000000mtqDAAQ). Upgrades install over the old version;
    uninstall is one click.
 2. **Deploy from source.** A developer deploys with the Salesforce CLI:
@@ -101,6 +101,15 @@ needs permission to install packages (System Administrator).
 - `unpackaged/`: example configuration records used by the Apex tests. They are deployed next to the package for testing and never ship to customers.
 - `config/project-scratch-def.json`: scratch org definition for development.
 
+## 🌐 Explore the TurboDocx Ecosystem
+
+| Package | Links | Description |
+|---------|-------|-------------|
+| TurboDocx SDKs | [![GitHub](https://img.shields.io/github/stars/turbodocx/sdk?style=social)](https://github.com/turbodocx/sdk) | Official SDKs for JavaScript, Python, PHP, Go, Java and Ruby |
+| @turbodocx/html-to-docx | [![npm](https://img.shields.io/npm/v/@turbodocx/html-to-docx?logo=npm&logoColor=white&label=npm)](https://www.npmjs.com/package/@turbodocx/html-to-docx) [![GitHub](https://img.shields.io/github/stars/turbodocx/html-to-docx?style=social)](https://github.com/turbodocx/html-to-docx) | Convert HTML to DOCX with the fastest JavaScript library |
+| n8n-nodes-turbodocx | [![npm](https://img.shields.io/npm/v/@turbodocx/n8n-nodes-turbodocx?logo=npm&logoColor=white&label=npm)](https://www.npmjs.com/package/@turbodocx/n8n-nodes-turbodocx) [![GitHub](https://img.shields.io/github/stars/turbodocx/n8n-nodes-turbodocx?style=social)](https://github.com/turbodocx/n8n-nodes-turbodocx) | n8n community node for TurboDocx API & TurboSign |
+| TurboDocx Writer | [![AppSource](https://img.shields.io/badge/Microsoft-AppSource-blue?logo=microsoft)](https://appsource.microsoft.com/en-us/product/office/WA200007397) | Official Microsoft Word add-in for document automation |
+
 ## Development
 
 ```bash
@@ -123,3 +132,15 @@ Issues and pull requests are welcome. Please include Apex tests with any change;
 ## Trademarks
 
 TurboDocx and TurboSign are trademarks of TurboDocx. The MIT license does not grant rights to use these names or logos. If you fork this project, please give your fork a different name.
+
+---
+
+<div align="center">
+
+**[Website](https://www.turbodocx.com)** • **[Documentation](https://docs.turbodocx.com/docs)** • **[Discord](https://discord.gg/NYKwz4BcpX)** • **[Twitter/X](https://twitter.com/TurboDocx)**
+
+<sub>Built with ❤️ by the TurboDocx team</sub>
+
+[![TurboDocx](https://raw.githubusercontent.com/TurboDocx/SDK/main/footer.png)](https://www.turbodocx.com)
+
+</div>

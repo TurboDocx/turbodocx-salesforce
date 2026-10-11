@@ -1,7 +1,7 @@
 <template>
     <lightning-card title="TurboSign Signatures" icon-name="standard:contract">
         <lightning-button-icon slot="actions" icon-name="utility:refresh" alternative-text="Refresh"
-            title="Refresh" onclick={handleRefresh} disabled={loading}></lightning-button-icon>
+            title="Refresh" onclick={handleRefresh} disabled={refreshDisabled}></lightning-button-icon>
 
         <div class="slds-var-p-horizontal_small slds-var-p-bottom_small">
             <!-- Loading -->
@@ -37,10 +37,12 @@
                                 <a href={e.Preview_Url__c} target="_blank" rel="noopener"
                                     class="slds-var-m-right_small">Open in TurboDocx</a>
                             </template>
-                            <lightning-button label="Remind" data-id={e.Id} onclick={handleRemind}
-                                variant="brand-outline" class="slds-var-m-right_x-small"></lightning-button>
-                            <lightning-button label="Void" data-id={e.Id} onclick={openVoid}
-                                variant="destructive-text"></lightning-button>
+                            <template lwc:if={e.canAct}>
+                                <lightning-button label="Remind" data-id={e.Id} onclick={handleRemind}
+                                    variant="brand-outline" class="slds-var-m-right_x-small"></lightning-button>
+                                <lightning-button label="Void" data-id={e.Id} onclick={openVoid}
+                                    variant="destructive-text"></lightning-button>
+                            </template>
                         </div>
                     </div>
                 </template>

@@ -2,6 +2,8 @@
 private class TurboSignActionsTest {
     /** Path-routing mock for the TurboSign document endpoints. */
     private static Integer sends = 0;
+    /** Void callouts the mock received, so a test can prove a refused void never reached TurboDocx. */
+    private static Integer voids = 0;
     private class Mock implements HttpCalloutMock {
         public HttpResponse respond(HttpRequest req) {
             HttpResponse res = new HttpResponse();
@@ -13,6 +15,7 @@ private class TurboSignActionsTest {
             } else if (ep.contains('/send-reminder')) {
                 res.setBody('{"data":{"results":[{"recipientId":"r1","status":"sent"}]}}');
             } else if (ep.contains('/void')) {
+                voids++;
                 res.setBody('{"data":{"id":"doc-1","name":"n","status":"voided","voidedAt":"x"}}');
             } else if (ep.endsWith('/v1/deliverable')) {
                 res.setBody('{"data":{"results":{"deliverable":{"id":"del-1","name":"Lease","fileType":"docx"}}}}');
@@ -120,6 +123,8 @@ private class TurboSignActionsTest {
             List<TurboSign_Envelope__c> got = TurboSignQuickActionController.getEnvelopes(a.Id);
             Test.stopTest();
             System.assertEquals(1, got.size(), 'running user can read the parent record, so its envelopes are returned');
+            // The panel skips its load-time sync for an envelope synced in the last few minutes.
+            System.assertEquals(null, got[0].Last_Synced__c, 'Last_Synced__c is returned (never synced yet)');
         }
     }
 
@@ -208,30 +213,127 @@ private class TurboSignActionsTest {
         }
     }
 
-    // The panel's void writes as the rep, like the Flow action: a rep who cannot edit Void Reason does
-    // not get it written in system mode behind their back.
+    // The panel's void and the Flow action write as the rep. A rep who cannot edit Void Reason is refused
+    // before TurboDocx is called, so the document is never voided there while 'sent' here.
     @IsTest
     static void voidFromThePanelRespectsFieldLevelSecurity() {
         User rep = TurboSignTestRep.user();
-        System.runAs(new User(Id = UserInfo.getUserId())) {
-            FieldPermissions fp = [SELECT Id FROM FieldPermissions WHERE Parent.Name = 'TurboSign_User'
-                AND Field = 'TurboSign_Envelope__c.Void_Reason__c'];
-            fp.PermissionsEdit = false;
-            update fp;
-        }
+        revokeVoidReasonEdit();
         System.runAs(rep) {
             TurboSign_Envelope__c e = makeEnvelope();
             Test.setMock(HttpCalloutMock.class, new Mock());
 
             Test.startTest();
             Boolean blocked = false;
-            try { TurboSignQuickActionController.voidEnvelope(e.Id, 'Superseded'); } catch (Exception ex) { blocked = true; }
+            try { TurboSignQuickActionController.voidEnvelope(e.Id, 'Superseded'); } catch (AuraHandledException ex) { blocked = true; }
             Test.stopTest();
 
             System.assert(blocked, 'a rep without edit on Void Reason cannot void from the panel');
         }
+        System.assertEquals(0, voids, 'TurboDocx is not asked to void');
         TurboSign_Envelope__c after = [SELECT Status__c, Void_Reason__c FROM TurboSign_Envelope__c LIMIT 1];
         System.assertEquals('sent', after.Status__c, 'not voided locally');
         System.assertEquals(null, after.Void_Reason__c, 'Void Reason not written in system mode');
+    }
+
+    @IsTest
+    static void voidActionRespectsFieldLevelSecurity() {
+        User rep = TurboSignTestRep.user();
+        revokeVoidReasonEdit();
+        System.runAs(rep) {
+            TurboSign_Envelope__c e = makeEnvelope();
+            Test.setMock(HttpCalloutMock.class, new Mock());
+
+            Test.startTest();
+            Boolean blocked = false;
+            try { runVoidAction(e.Id); } catch (AuraHandledException ex) { blocked = true; }
+            Test.stopTest();
+
+            System.assert(blocked, 'a rep without edit on Void Reason cannot void from a Flow');
+        }
+        System.assertEquals(0, voids, 'TurboDocx is not asked to void');
+        System.assertEquals('sent', [SELECT Status__c FROM TurboSign_Envelope__c LIMIT 1].Status__c, 'not voided locally');
+    }
+
+    // Edit on the related record is not enough: the void writes the envelope, so a rep who cannot edit the
+    // envelope (here, no Edit on the object; in an org with Private envelopes, someone else's) is refused
+    // before TurboDocx is called, from the panel and from a Flow.
+    @IsTest
+    static void voidRequiresEditOnTheEnvelopeFromThePanel() {
+        User rep = TurboSignTestRep.user();
+        TurboSign_Envelope__c e = envelopeTheRepCannotEdit(rep);
+        System.runAs(rep) {
+            Test.setMock(HttpCalloutMock.class, new Mock());
+            Test.startTest();
+            String refused;
+            try { TurboSignQuickActionController.voidEnvelope(e.Id, 'Superseded'); } catch (AuraHandledException ex) { refused = ex.getMessage(); }
+            Test.stopTest();
+            System.assertEquals(TurboSignActionUtil.NO_ENVELOPE_EDIT, refused, 'refused for the envelope itself');
+        }
+        System.assertEquals(0, voids, 'TurboDocx is not asked to void');
+        System.assertEquals('sent', [SELECT Status__c FROM TurboSign_Envelope__c WHERE Id = :e.Id].Status__c);
+    }
+
+    @IsTest
+    static void voidRequiresEditOnTheEnvelopeFromAFlow() {
+        User rep = TurboSignTestRep.user();
+        TurboSign_Envelope__c e = envelopeTheRepCannotEdit(rep);
+        System.runAs(rep) {
+            Test.setMock(HttpCalloutMock.class, new Mock());
+            Test.startTest();
+            String refused;
+            try { runVoidAction(e.Id); } catch (AuraHandledException ex) { refused = ex.getMessage(); }
+            Test.stopTest();
+            System.assertEquals(TurboSignActionUtil.NO_ENVELOPE_EDIT, refused, 'refused for the envelope itself');
+        }
+        System.assertEquals(0, voids, 'TurboDocx is not asked to void');
+        System.assertEquals('sent', [SELECT Status__c FROM TurboSign_Envelope__c WHERE Id = :e.Id].Status__c);
+    }
+
+    private static void runVoidAction(Id envelopeId) {
+        TurboSignVoidAction.Input inp = new TurboSignVoidAction.Input();
+        inp.envelopeId = envelopeId; inp.reason = 'Superseded';
+        TurboSignVoidAction.run(new List<TurboSignVoidAction.Input>{ inp });
+    }
+
+    private static void revokeVoidReasonEdit() {
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            FieldPermissions fp = [SELECT Id FROM FieldPermissions WHERE Parent.Name = 'TurboSign_User'
+                AND Field = 'TurboSign_Envelope__c.Void_Reason__c'];
+            fp.PermissionsEdit = false;
+            update fp;
+        }
+    }
+
+    /**
+     * A 'sent' envelope for an Account the rep owns (so the related-record check passes), with Edit on
+     * envelopes taken away from TurboSign User. The test asserts the rep can edit the Account and not
+     * the envelope through UserRecordAccess first.
+     */
+    private static TurboSign_Envelope__c envelopeTheRepCannotEdit(User rep) {
+        Account mine;
+        TurboSign_Envelope__c e;
+        System.runAs(rep) {
+            mine = new Account(Name = 'Rep owned');
+            insert mine;
+            e = new TurboSign_Envelope__c(Document_Name__c = 'T', Status__c = 'sent',
+                TurboDocx_Document_Id__c = 'doc-1', Related_Record_Id__c = mine.Id);
+            insert e;
+        }
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            ObjectPermissions op = [SELECT Id FROM ObjectPermissions WHERE Parent.Name = 'TurboSign_User'
+                AND SobjectType = 'TurboSign_Envelope__c'];
+            op.PermissionsEdit = false;
+            op.PermissionsDelete = false; // Delete depends on Edit
+            update op;
+        }
+        Map<Id, Boolean> canEdit = new Map<Id, Boolean>();
+        for (UserRecordAccess a : [SELECT RecordId, HasEditAccess FROM UserRecordAccess
+                                   WHERE UserId = :rep.Id AND RecordId IN :new List<Id>{ mine.Id, e.Id }]) {
+            canEdit.put(a.RecordId, a.HasEditAccess);
+        }
+        System.assertEquals(true, canEdit.get(mine.Id), 'the rep can edit the related record');
+        System.assertEquals(false, canEdit.get(e.Id), 'the rep cannot edit the envelope');
+        return e;
     }
 }

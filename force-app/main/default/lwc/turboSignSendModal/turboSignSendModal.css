@@ -1,0 +1,38 @@
+/* The document is the point of this tab: give it most of the modal's height, leaving room for the
+   stale notice and the Back/Send row without the modal scrolling. */
+.doc-frame {
+    display: block;
+    width: 100%;
+    height: 56vh;
+    min-height: 26rem;
+    border: 1px solid var(--slds-g-color-border-base-1, var(--lwc-colorBorder));
+    border-radius: 0.25rem;
+}
+
+/* Keyboard users land on the frame after Update preview / Try again; show where they are.
+   A class, not :focus: Chrome doesn't match :focus on an iframe whose document holds the focus. */
+.doc-frame_focused {
+    outline: none;
+    box-shadow: var(--slds-g-shadow-outline-focus-1, var(--lwc-shadowButtonFocus));
+}
+
+/* Rendering and error states hold the same footprint, so the modal doesn't jump when the PDF lands. */
+.doc-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 26rem;
+    padding: 0 1rem;
+    text-align: center;
+}
+
+.doc-state__spinner {
+    width: 3rem;
+    height: 3rem;
+}
+
+.doc-state__text {
+    margin-top: 0.75rem;
+    max-width: 30rem;
+}

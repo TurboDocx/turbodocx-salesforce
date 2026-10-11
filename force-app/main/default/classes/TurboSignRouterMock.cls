@@ -1,6 +1,7 @@
 @IsTest
 public class TurboSignRouterMock implements HttpCalloutMock {
     public static String lastReviewBody;
+    public static String lastSignBody;
     public HttpResponse respond(HttpRequest req) {
         HttpResponse res = new HttpResponse();
         res.setHeader('Content-Type', 'application/json');
@@ -11,6 +12,9 @@ public class TurboSignRouterMock implements HttpCalloutMock {
         } else if (ep.endsWith('/turbosign/single/prepare-for-review')) {
             lastReviewBody = req.getBody();
             res.setBody('{"data":{"success":true,"documentId":"doc-999","status":"under_review","previewUrl":"https://td/p/999","message":"ok"}}');
+        } else if (ep.endsWith('/turbosign/single/prepare-for-signing')) {
+            lastSignBody = req.getBody();
+            res.setBody('{"data":{"success":true,"documentId":"doc-888","status":"sent","message":"ok"}}');
         } else if (ep.endsWith('/turbosign/single/preview-anchors')) {
             res.setBody('{"data":{"results":{"anchors":[' +
                 '{"anchor":"{sig}","found":true,"occurrences":1},' +

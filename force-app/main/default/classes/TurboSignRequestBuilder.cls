@@ -247,6 +247,67 @@ public with sharing class TurboSignRequestBuilder {
         return build(recordId, configDeveloperName, overrides, null);
     }
 
+    /** Who a send goes to, and whose anchors the document keeps (see resolveRecipients). */
+    @TestVisible
+    private class ResolvedRecipients {
+        @TestVisible List<Object> recipients = new List<Object>();      // [{name,email,signingOrder}]
+        @TestVisible Map<String, String> roleToEmail = new Map<String, String>();
+        @TestVisible Set<String> anchorRoles = new Set<String>();        // roles whose anchor tokens are merged
+    }
+
+    @TestVisible
+    private class RecipientParams {
+        @TestVisible List<TurboSign_Recipient_Rule__mdt> rules;
+        @TestVisible Map<String, Map<String, String>> overrides;       // role -> { name, email } edited by the rep
+        @TestVisible Map<String, Object> vals;                          // resolved record values
+        @TestVisible Boolean forPreview = false;
+    }
+
+    /**
+     * Applies the recipient rules (optional roles that resolve no email are dropped, not errored: §7.3).
+     * A send stops on a required signer with no email. The Review step's preview only renders the document,
+     * so it doesn't: it keeps that signer's anchors, showing the document the send will produce once the rep
+     * fills in the email. An optional signer with no email is dropped in both, so its anchors render empty
+     * in the preview exactly as in the sent document.
+     */
+    @TestVisible
+    private static ResolvedRecipients resolveRecipients(RecipientParams p) {
+        ResolvedRecipients out = new ResolvedRecipients();
+        Integer signerNo = 0;
+        for (TurboSign_Recipient_Rule__mdt rec : p.rules) {
+            signerNo++;
+            Map<String, String> ovr = (p.overrides != null) ? p.overrides.get(rec.Role_Label__c) : null;
+            String emailStr = pick((ovr != null) ? ovr.get('email') : null, rec.Static_Email__c, rec.Email_Field_Path__c, p.vals);
+            if (String.isBlank(emailStr)) {
+                if (rec.Required__c == true) {
+                    if (p.forPreview != true) {
+                        // Role_Label__c is a hidden id (signer_<n>); name the signer by position instead.
+                        throw new TurboSignHttpClient.ApiException('Signer ' + signerNo + ' has no email on this record.');
+                    }
+                    out.anchorRoles.add(rec.Role_Label__c);
+                }
+                continue;
+            }
+            String nameStr = pick((ovr != null) ? ovr.get('name') : null, rec.Static_Name__c, rec.Name_Field_Path__c, p.vals);
+            out.recipients.add(new Map<String, Object>{
+                'name' => displayName(nameStr, emailStr),
+                'email' => emailStr,
+                'signingOrder' => (rec.Signing_Order__c != null ? rec.Signing_Order__c : 1) });
+            out.roleToEmail.put(rec.Role_Label__c, emailStr);
+            out.anchorRoles.add(rec.Role_Label__c);
+        }
+        renumberSigningOrder(out.recipients);
+        return out;
+    }
+
+    /** A record, a config and the rep's edits from the review modal. */
+    public class BuildParams {
+        public Id recordId;
+        public String configDeveloperName;
+        public Map<String, String> overrides;                         // placeholder -> edited value
+        public Map<String, Map<String, String>> recipientOverrides;   // role -> { name, email }
+    }
+
     /**
      * @param overrides           placeholder -> edited variable value (rep's edits win over the record).
      * @param recipientOverrides  role -> { name, email } edited signer values (win over resolved fields).
@@ -254,42 +315,46 @@ public with sharing class TurboSignRequestBuilder {
     public static TurboSignService.SendRequest build(
         Id recordId, String configDeveloperName, Map<String, String> overrides, Map<String, Map<String, String>> recipientOverrides
     ) {
+        BuildParams p = new BuildParams();
+        p.recordId = recordId;
+        p.configDeveloperName = configDeveloperName;
+        p.overrides = overrides;
+        p.recipientOverrides = recipientOverrides;
+        return compose(p, false);
+    }
+
+    /**
+     * The request the Review step's preview renders: the same template, name and variables as the send, but
+     * a signer with no email doesn't stop it (see resolveRecipients). Its recipients are not sendable.
+     */
+    public static TurboSignService.SendRequest buildForPreview(BuildParams p) {
+        return compose(p, true);
+    }
+
+    private static TurboSignService.SendRequest compose(BuildParams p, Boolean forPreview) {
+        Id recordId = p.recordId;
+        String configDeveloperName = p.configDeveloperName;
         Resolved r = resolveAll(recordId, configDeveloperName);
 
         List<Object> variables = new List<Object>();
         Set<String> mappedPlaceholders = new Set<String>();
         for (TurboSign_Variable_Mapping__mdt m : r.maps) {
             mappedPlaceholders.add(m.Placeholder__c);
-            variables.add(variableFor(m, resolvedText(m, r.vals, overrides, r.cfg.Date_Format__c)));
+            variables.add(variableFor(m, resolvedText(m, r.vals, p.overrides, r.cfg.Date_Format__c)));
         }
-        // Recipients (defaults; optional roles that resolve null are dropped, not errored — §7.3)
-        List<Object> recipients = new List<Object>();
-        Map<String, String> roleToEmail = new Map<String, String>();
-        Integer signerNo = 0;
-        for (TurboSign_Recipient_Rule__mdt rec : r.recRules) {
-            signerNo++;
-            Map<String, String> ovr = (recipientOverrides != null) ? recipientOverrides.get(rec.Role_Label__c) : null;
-            String emailStr = pick((ovr != null) ? ovr.get('email') : null, rec.Static_Email__c, rec.Email_Field_Path__c, r.vals);
-            if (String.isBlank(emailStr)) {
-                if (rec.Required__c == true) {
-                    // Role_Label__c is a hidden id (signer_<n>); name the signer by position instead.
-                    throw new TurboSignHttpClient.ApiException('Signer ' + signerNo + ' has no email on this record.');
-                }
-                continue;
-            }
-            String nameStr = pick((ovr != null) ? ovr.get('name') : null, rec.Static_Name__c, rec.Name_Field_Path__c, r.vals);
-            recipients.add(new Map<String, Object>{
-                'name' => displayName(nameStr, emailStr),
-                'email' => emailStr,
-                'signingOrder' => (rec.Signing_Order__c != null ? rec.Signing_Order__c : 1) });
-            roleToEmail.put(rec.Role_Label__c, emailStr);
-        }
-        renumberSigningOrder(recipients);
+        RecipientParams rp = new RecipientParams();
+        rp.rules = r.recRules;
+        rp.overrides = p.recipientOverrides;
+        rp.vals = r.vals;
+        rp.forPreview = forPreview;
+        ResolvedRecipients who = resolveRecipients(rp);
+        List<Object> recipients = who.recipients;
+        Map<String, String> roleToEmail = who.roleToEmail;
 
         // Anchors are their own source of truth (the Anchors section): auto-inject each configured anchor
         // token as a variable whose value is the token itself, so it survives the mail-merge. Only inject
-        // anchors whose recipient survived (roleToEmail) so a dropped signer never leaves a literal token.
-        injectAnchorSelfValues(variables, r.fieldRules, mappedPlaceholders, roleToEmail.keySet());
+        // anchors whose recipient survived so a dropped signer never leaves a literal token.
+        injectAnchorSelfValues(variables, r.fieldRules, mappedPlaceholders, who.anchorRoles);
 
         // Fields (anchors — §2.6)
         List<Object> fields = new List<Object>();

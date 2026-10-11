@@ -431,13 +431,14 @@ private class TurboSignConfigControllerTest {
         }
         System.assertEquals(expectedByType, deployedByType, 'the deployed children are the ones Setup writes, and no others');
 
-        Set<String> types = new Set<String>();
-        for (Metadata.CustomMetadata md : expected) types.add(md.fullName.substringBefore('.') + '__mdt');
-        Map<String, Map<String, Schema.SObjectField>> fieldsByType = new Map<String, Map<String, Schema.SObjectField>>();
-        for (Schema.DescribeSObjectResult d : Schema.describeSObjects(new List<String>(types)))
-            fieldsByType.put(d.getName(), d.fields.getMap());
-        for (Metadata.CustomMetadata md : expected)
-            assertDeployedMatches(md, fieldsByType.get(md.fullName.substringBefore('.') + '__mdt'));
+        Map<String, List<Metadata.CustomMetadata>> expectedBySObject = new Map<String, List<Metadata.CustomMetadata>>();
+        for (Metadata.CustomMetadata md : expected) {
+            String sobj = md.fullName.substringBefore('.') + '__mdt';
+            if (!expectedBySObject.containsKey(sobj)) expectedBySObject.put(sobj, new List<Metadata.CustomMetadata>());
+            expectedBySObject.get(sobj).add(md);
+        }
+        for (Schema.DescribeSObjectResult d : Schema.describeSObjects(new List<String>(expectedBySObject.keySet())))
+            assertDeployedMatches(expectedBySObject.get(d.getName()), d);
     }
 
     // TurboSign Setup deactivates a row it no longer needs and never deletes it, and a deploy of the
@@ -460,38 +461,45 @@ private class TurboSignConfigControllerTest {
         return names;
     }
 
-    /** The deployed record named md.fullName has md's label and values, and defaults for what Setup leaves out. */
-    private static void assertDeployedMatches(Metadata.CustomMetadata md, Map<String, Schema.SObjectField> fields) {
-        String sobj = md.fullName.substringBefore('.') + '__mdt';
-        String dev = md.fullName.substringAfter('.');
+    /**
+     * Each deployed record of one type has its expected record's label and values, and defaults for what
+     * Setup leaves out. One query for the type, indexed by DeveloperName.
+     */
+    private static void assertDeployedMatches(List<Metadata.CustomMetadata> expected, Schema.DescribeSObjectResult type) {
         List<String> custom = new List<String>();
         Map<String, Object> defaults = new Map<String, Object>();
-        for (Schema.SObjectField f : fields.values()) {
+        for (Schema.SObjectField f : type.fields.getMap().values()) {
             Schema.DescribeFieldResult d = f.getDescribe();
             if (d.isCustom()) { custom.add(d.getName()); defaults.put(d.getName(), d.getDefaultValue()); }
         }
-        String q = 'SELECT MasterLabel, ' + String.join(custom, ', ')
+        Set<String> devs = new Set<String>();
+        for (Metadata.CustomMetadata md : expected) devs.add(md.fullName.substringAfter('.'));
+        String q = 'SELECT DeveloperName, MasterLabel, ' + String.join(custom, ', ')
             + (custom.contains('Config__c') ? ', Config__r.DeveloperName' : '')
-            + ' FROM ' + sobj + ' WHERE DeveloperName = :dev';
-        List<SObject> rows = Database.query(q);
-        System.assertEquals(1, rows.size(), md.fullName + ' is deployed');
-        SObject row = rows[0];
-        System.assertEquals(md.label, row.get('MasterLabel'), md.fullName + ' label');
+            + ' FROM ' + type.getName() + ' WHERE DeveloperName IN :devs';
+        Map<String, SObject> deployed = new Map<String, SObject>();
+        for (SObject row : Database.query(q)) deployed.put((String) row.get('DeveloperName'), row);
 
-        Map<String, Object> written = new Map<String, Object>();
-        for (Metadata.CustomMetadataValue v : md.values) written.put(v.field, v.value);
-        System.assertEquals(true, written.get('Active__c'), md.fullName + ': Setup writes Active__c');
-        for (String f : custom) {
-            Object actual = f == 'Config__c' ? row.getSObject('Config__r').get('DeveloperName') : row.get(f);
-            if (!written.containsKey(f)) {
-                // Setup leaves the field out, so its deploy gets the field's default (or nothing).
-                Object dflt = defaults.get(f);
-                System.assert(actual == null || actual == dflt || (dflt == null && actual == false),
-                    md.fullName + '.' + f + ' is ' + actual + ', but Setup leaves it out (default ' + dflt + ')');
-            } else if (actual instanceof Decimal) {
-                System.assertEquals(Decimal.valueOf(String.valueOf(written.get(f))), (Decimal) actual, md.fullName + '.' + f);
-            } else {
-                System.assertEquals(written.get(f), actual, md.fullName + '.' + f);
+        for (Metadata.CustomMetadata md : expected) {
+            SObject row = deployed.get(md.fullName.substringAfter('.'));
+            System.assertNotEquals(null, row, md.fullName + ' is deployed');
+            System.assertEquals(md.label, row.get('MasterLabel'), md.fullName + ' label');
+
+            Map<String, Object> written = new Map<String, Object>();
+            for (Metadata.CustomMetadataValue v : md.values) written.put(v.field, v.value);
+            System.assertEquals(true, written.get('Active__c'), md.fullName + ': Setup writes Active__c');
+            for (String f : custom) {
+                Object actual = f == 'Config__c' ? row.getSObject('Config__r').get('DeveloperName') : row.get(f);
+                if (!written.containsKey(f)) {
+                    // Setup leaves the field out, so its deploy gets the field's default (or nothing).
+                    Object dflt = defaults.get(f);
+                    System.assert(actual == null || actual == dflt || (dflt == null && actual == false),
+                        md.fullName + '.' + f + ' is ' + actual + ', but Setup leaves it out (default ' + dflt + ')');
+                } else if (actual instanceof Decimal) {
+                    System.assertEquals(Decimal.valueOf(String.valueOf(written.get(f))), (Decimal) actual, md.fullName + '.' + f);
+                } else {
+                    System.assertEquals(written.get(f), actual, md.fullName + '.' + f);
+                }
             }
         }
     }

@@ -13,7 +13,7 @@ public with sharing class TurboSignQuickActionController {
         return [
             SELECT Id, Name, Status__c, Document_Name__c, Preview_Url__c, Sent_On__c, Completed_On__c,
                    Recipient_Count__c, Signed_Count__c, Reminders_Sent__c, TurboDocx_Document_Id__c,
-                   Days_Outstanding__c
+                   Days_Outstanding__c, Last_Synced__c
             FROM TurboSign_Envelope__c
             WHERE Related_Record_Id__c = :String.valueOf(recordId)
             WITH USER_MODE
@@ -76,28 +76,11 @@ public with sharing class TurboSignQuickActionController {
     @AuraEnabled
     public static Map<String, Object> sendForSignature(Id recordId, String configDeveloperName, String overridesJson) {
         Id sentBy = UserInfo.getUserId(); // §6.1.1
-        Map<String, String> varOverrides = new Map<String, String>();
-        Map<String, Map<String, String>> recipientOverrides = new Map<String, Map<String, String>>();
-        if (String.isNotBlank(overridesJson)) {
-            Map<String, Object> raw = (Map<String, Object>) JSON.deserializeUntyped(overridesJson);
-            if (raw.get('variables') instanceof Map<String, Object>) {
-                Map<String, Object> vm = (Map<String, Object>) raw.get('variables');
-                for (String k : vm.keySet()) varOverrides.put(k, vm.get(k) == null ? '' : String.valueOf(vm.get(k)));
-            }
-            if (raw.get('recipients') instanceof List<Object>) {
-                for (Object ro : (List<Object>) raw.get('recipients')) {
-                    Map<String, Object> rm = (Map<String, Object>) ro;
-                    String role = String.valueOf(rm.get('role'));
-                    if (String.isBlank(role)) continue;
-                    recipientOverrides.put(role, new Map<String, String>{
-                        'name' => rm.get('name') == null ? '' : String.valueOf(rm.get('name')),
-                        'email' => rm.get('email') == null ? '' : String.valueOf(rm.get('email')) });
-                }
-            }
-        }
         TurboSignService.stage = null;
         try {
-            TurboSignService.SendRequest req = TurboSignRequestBuilder.build(recordId, configDeveloperName, varOverrides, recipientOverrides);
+            // Parsed inside the try: malformed overrides are a failed send with a log row, like any other.
+            Overrides ov = new Overrides(overridesJson);
+            TurboSignService.SendRequest req = TurboSignRequestBuilder.build(recordId, configDeveloperName, ov.variables, ov.recipients);
             req.sentByUserId = sentBy;
             return new Map<String, Object>{ 'ok' => true, 'envelopeId' => TurboSignService.sendForSignature(req) };
         } catch (Exception e) {
@@ -118,6 +101,106 @@ public with sharing class TurboSignQuickActionController {
         }
     }
 
+    /** The rep's edits from the review modal (placeholder -> value, role -> name/email), parsed once. */
+    private class Overrides {
+        Map<String, String> variables = new Map<String, String>();
+        Map<String, Map<String, String>> recipients = new Map<String, Map<String, String>>();
+        Overrides(String overridesJson) {
+            if (String.isBlank(overridesJson)) return;
+            Map<String, Object> raw = (Map<String, Object>) JSON.deserializeUntyped(overridesJson);
+            if (raw.get('variables') instanceof Map<String, Object>) {
+                Map<String, Object> vm = (Map<String, Object>) raw.get('variables');
+                for (String k : vm.keySet()) variables.put(k, vm.get(k) == null ? '' : String.valueOf(vm.get(k)));
+            }
+            if (raw.get('recipients') instanceof List<Object>) {
+                for (Object ro : (List<Object>) raw.get('recipients')) {
+                    Map<String, Object> rm = (Map<String, Object>) ro;
+                    String role = String.valueOf(rm.get('role'));
+                    if (String.isBlank(role)) continue;
+                    recipients.put(role, new Map<String, String>{
+                        'name' => rm.get('name') == null ? '' : String.valueOf(rm.get('name')),
+                        'email' => rm.get('email') == null ? '' : String.valueOf(rm.get('email')) });
+                }
+            }
+        }
+    }
+
+    /**
+     * Largest PDF the preview returns. The response body, its blob copy and the base64 copy (4/3 the size)
+     * all sit on the 6 MB synchronous heap together, so 1 MB of PDF keeps the transaction clear of the limit.
+     */
+    @TestVisible private static Integer maxPreviewBytes = 1000000;
+
+    /**
+     * Review step "Preview PDF": renders this send's document with the rep's edits (the same
+     * POST /v1/deliverable body a send uses) and returns the backend's rendered PDF as base64, so the
+     * browser never needs TurboDocx credentials. Creates no signature request, emails nobody, and does
+     * no DML. The deliverable is deleted again once its PDF is read (best effort).
+     * Returns { fileName, base64 }; throws a readable AuraHandledException on failure.
+     */
+    @AuraEnabled
+    public static Map<String, Object> previewPdf(Id recordId, String configDeveloperName, String overridesJson) {
+        String message;
+        try {
+            Overrides ov = new Overrides(overridesJson);
+            TurboSignRequestBuilder.BuildParams p = new TurboSignRequestBuilder.BuildParams();
+            p.recordId = recordId;
+            p.configDeveloperName = configDeveloperName;
+            p.overrides = ov.variables;
+            p.recipientOverrides = ov.recipients;
+            // Recipients don't stop a preview: the deliverable needs only the template, name and variables.
+            TurboSignService.SendRequest req = TurboSignRequestBuilder.buildForPreview(p);
+            req.generationTimeoutMs = TurboSignHttpClient.PREVIEW_GENERATION_TIMEOUT_MS;
+            String deliverableId = TurboSignService.generateDeliverable(req);
+            Blob pdf;
+            try {
+                pdf = TurboSignHttpClient.getDeliverablePdf(deliverableId, maxPreviewBytes);
+            } finally {
+                discardPreviewDeliverable(deliverableId);
+            }
+            return new Map<String, Object>{
+                'fileName' => (String.isBlank(req.documentName) ? 'Preview' : req.documentName) + '.pdf',
+                'base64' => EncodingUtil.base64Encode(pdf) };
+        } catch (TurboSignHttpClient.PdfTooLargeException e) {
+            message = 'This document is too large to preview here ('
+                + (e.bytes == null ? '' : megabytes(e.bytes, System.RoundingMode.CEILING) + ' MB, ')
+                + 'the limit is ' + megabytes(maxPreviewBytes, System.RoundingMode.FLOOR) + ' MB). You can still send it.';
+        } catch (Exception e) {
+            message = 'Could not render the preview: ' + e.getMessage();
+        }
+        AuraHandledException ex = new AuraHandledException(message);
+        ex.setMessage(message);
+        throw ex;
+    }
+
+    /**
+     * Best effort: the preview's deliverable has served its purpose once the PDF is read (or found too large),
+     * so it is soft-deleted rather than left in the org's deliverables. A failed delete never fails the preview.
+     * It is logged to the debug log, not TurboSign_Log__c: the preview does no DML, and a too-large preview
+     * throws, which would roll a log row back anyway.
+     */
+    private static void discardPreviewDeliverable(String deliverableId) {
+        try {
+            TurboSignHttpClient.deleteDeliverable(deliverableId);
+        } catch (Exception e) {
+            System.debug(LoggingLevel.WARN, 'TurboSign preview: could not delete deliverable ' + deliverableId + ': ' + e.getMessage());
+        }
+    }
+
+    // The size rounds up and the limit down, so a PDF over the limit never reads as "1.0 MB, the limit is 1.0 MB".
+    private static String megabytes(Long bytes, System.RoundingMode mode) {
+        return String.valueOf(Decimal.valueOf(bytes).divide(1000000, 1, mode));
+    }
+
+    /**
+     * URL of the Visualforce page the Document tab frames to show the preview. The page reference adds the
+     * package namespace prefix when there is one, which a hardcoded /apex/ path would miss.
+     */
+    @AuraEnabled(cacheable=true)
+    public static String getViewerUrl() {
+        return Page.TurboSign_PdfViewer.getUrl();
+    }
+
     /** Config picker for the rep's send modal (reps don't get the admin TurboSignConfigController). */
     @AuraEnabled(cacheable=true)
     public static List<Map<String, Object>> listConfigs(String sourceObject) {
@@ -134,19 +217,10 @@ public with sharing class TurboSignQuickActionController {
 
     @AuraEnabled
     public static void voidEnvelope(Id envelopeId, String reason) {
-        // Apex DML ignores object permissions; block a user who can't edit the envelope before we
-        // both call out to void it externally and write the local status.
-        if (!Schema.sObjectType.TurboSign_Envelope__c.isUpdateable()) {
-            throw new AuraHandledException('You do not have permission to void this envelope.');
-        }
-        TurboSignActionUtil.requireEditAccess(new Set<Id>{ envelopeId });
-        TurboSign_Envelope__c voided = new TurboSign_Envelope__c(Id = envelopeId, Status__c = 'voided',
-            Voided_On__c = System.now(), Void_Reason__c = reason, Sync_Active__c = false);
-        // The write runs as the user, like the Flow action. Check the fields first so a user who can't
-        // write them is refused before TurboDocx voids the document.
-        if (!Security.stripInaccessible(AccessType.UPDATABLE, new List<SObject>{ voided }).getRemovedFields().isEmpty()) {
-            throw new AuraHandledException('You do not have permission to void this envelope.');
-        }
+        // The write runs as the user, like the Flow action. Check the related record, the envelope and the
+        // fields first, so a user who can't write them is refused before TurboDocx voids the document.
+        TurboSignActionUtil.requireVoidAccess(new Set<Id>{ envelopeId });
+        TurboSign_Envelope__c voided = TurboSignActionUtil.voided(envelopeId, reason);
         String docId = TurboSignActionUtil.docIdsForEnvelopes(new Set<Id>{ envelopeId }).get(envelopeId);
         TurboSignHttpClient.voidDocument(docId, reason);
         update as user voided;

@@ -1,5 +1,5 @@
 {
-  "name": "turbosign-salesforce",
+  "name": "turbodocx-salesforce",
   "private": true,
   "scripts": {
     "test": "sfdx-lwc-jest"
