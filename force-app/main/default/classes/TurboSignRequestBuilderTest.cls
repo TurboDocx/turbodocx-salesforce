@@ -299,4 +299,61 @@ private class TurboSignRequestBuilderTest {
         String named = TurboSignRequestBuilder.resolveDocumentName('Lease {date}', null, 'yyyy-MM-ddTHH:mm');
         System.assert(named.startsWith('Lease '), 'falls back instead of throwing, got: ' + named);
     }
+
+    // #45 review: the preview needs only templateId, name and variables, so a signer with no email must not
+    // stop it. A required signer keeps its anchors (the send's document will have them once the rep adds the
+    // email); an optional one is dropped exactly as the send drops it.
+    private static TurboSignRequestBuilder.RecipientParams signerWithoutEmail(Boolean required, Boolean forPreview) {
+        TurboSignRequestBuilder.RecipientParams p = new TurboSignRequestBuilder.RecipientParams();
+        p.rules = new List<TurboSign_Recipient_Rule__mdt>{ new TurboSign_Recipient_Rule__mdt(
+            Role_Label__c = 'Signer', Email_Field_Path__c = 'Contact__r.Email', Name_Field_Path__c = 'Contact__r.Name',
+            Signing_Order__c = 1, Required__c = required) };
+        p.vals = new Map<String, Object>();
+        p.forPreview = forPreview;
+        return p;
+    }
+
+    @IsTest
+    static void previewKeepsTheAnchorsOfARequiredSignerWithoutAnEmail() {
+        TurboSignRequestBuilder.ResolvedRecipients r = TurboSignRequestBuilder.resolveRecipients(signerWithoutEmail(true, true));
+        System.assert(r.anchorRoles.contains('Signer'), 'the required signer\'s anchors render as the send will');
+        System.assert(r.recipients.isEmpty(), 'nobody to address without an email');
+    }
+
+    @IsTest
+    static void previewDropsAnOptionalSignerWithoutAnEmailLikeTheSend() {
+        TurboSignRequestBuilder.ResolvedRecipients preview = TurboSignRequestBuilder.resolveRecipients(signerWithoutEmail(false, true));
+        TurboSignRequestBuilder.ResolvedRecipients send = TurboSignRequestBuilder.resolveRecipients(signerWithoutEmail(false, false));
+        System.assert(!preview.anchorRoles.contains('Signer'), 'dropped signer: its anchors are not merged');
+        System.assertEquals(send.anchorRoles, preview.anchorRoles, 'preview and send agree on a dropped optional signer');
+    }
+
+    @IsTest
+    static void sendStillStopsOnARequiredSignerWithoutAnEmail() {
+        String msg;
+        try {
+            TurboSignRequestBuilder.resolveRecipients(signerWithoutEmail(true, false));
+        } catch (TurboSignHttpClient.ApiException e) {
+            msg = e.getMessage();
+        }
+        System.assertEquals('Signer 1 has no email on this record.', msg, 'the send still asks for the email');
+    }
+
+    @IsTest
+    static void previewBuildsTheSameDeliverableAsTheSend() {
+        Opportunity o = makeOpp();
+        TurboSignRequestBuilder.BuildParams p = new TurboSignRequestBuilder.BuildParams();
+        p.recordId = o.Id;
+        p.configDeveloperName = 'Example_Agreement';
+        p.overrides = new Map<String, String>{ '{ClientName}' => 'Edited Inc' };
+
+        Test.startTest();
+        TurboSignService.SendRequest preview = TurboSignRequestBuilder.buildForPreview(p);
+        TurboSignService.SendRequest send = TurboSignRequestBuilder.build(o.Id, 'Example_Agreement', p.overrides, null);
+        Test.stopTest();
+
+        System.assertEquals(send.templateId, preview.templateId, 'same template');
+        System.assertEquals(send.documentName, preview.documentName, 'same name');
+        System.assertEquals(JSON.serialize(send.variables), JSON.serialize(preview.variables), 'same variables, anchors included');
+    }
 }

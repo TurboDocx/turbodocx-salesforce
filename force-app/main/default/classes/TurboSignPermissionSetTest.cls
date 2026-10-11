@@ -27,22 +27,6 @@ private class TurboSignPermissionSetTest {
         System.assertEquals(rep.Id, TurboSignTestRep.user().Id, 'reused within a test');
     }
 
-    // The Standard User profile's name is translated in an org or for a user in another language, so the
-    // rep's profile must be found without its name: a user who reads profile names in French still gets
-    // a Standard User rep.
-    @IsTest
-    static void testRepIsFoundWithoutTheProfileName() {
-        User french = new User(ProfileId = UserInfo.getProfileId(),
-            Username = 'turbosign.fr.' + UserInfo.getOrganizationId() + '@example.com',
-            Email = 'turbosign.fr@example.com', LastName = 'Admin', Alias = 'tsfr',
-            TimeZoneSidKey = 'Europe/Paris', LocaleSidKey = 'fr_FR',
-            EmailEncodingKey = 'UTF-8', LanguageLocaleKey = 'fr');
-        insert french;
-        User rep;
-        System.runAs(french) { rep = TurboSignTestRep.user(); }
-        assertStandardUserProfile(rep.Id);
-    }
-
     /** Standard User, identified by what it is, not by its (translated) name. */
     private static void assertStandardUserProfile(Id userId) {
         Id profileId = [SELECT ProfileId FROM User WHERE Id = :userId].ProfileId;

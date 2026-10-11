@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningMessageChannel xmlns="http://soap.sforce.com/2006/04/metadata">
+    <masterLabel>TurboSign Envelope Sent</masterLabel>
+    <description>Published by the Send for Signature modal after TurboDocx accepts a send, so the TurboSign Signatures panel on the same record reloads.</description>
+    <isExposed>false</isExposed>
+    <lightningMessageFields>
+        <fieldName>recordId</fieldName>
+        <description>The record the document was sent from.</description>
+    </lightningMessageFields>
+    <lightningMessageFields>
+        <fieldName>envelopeId</fieldName>
+        <description>The new TurboSign_Envelope__c id.</description>
+    </lightningMessageFields>
+</LightningMessageChannel>

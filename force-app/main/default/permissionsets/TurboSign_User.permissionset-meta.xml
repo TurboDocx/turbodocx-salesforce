@@ -344,6 +344,10 @@
         <enabled>true</enabled>
     </classAccesses>
     <classAccesses>
+        <apexClass>TurboSignPdfViewerController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
         <apexClass>TurboSignQuickActionController</apexClass>
         <enabled>true</enabled>
     </classAccesses>
@@ -379,4 +383,8 @@
         <apexClass>TurboSignVoidAction</apexClass>
         <enabled>true</enabled>
     </classAccesses>
+  <pageAccesses>
+    <apexPage>TurboSign_PdfViewer</apexPage>
+    <enabled>true</enabled>
+  </pageAccesses>
 </PermissionSet>

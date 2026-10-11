@@ -1,0 +1,60 @@
+<!--
+    Shows a PDF that the TurboSign send modal hands over by postMessage, as a Blob, once this page says it is
+    ready. The modal can't frame a blob: URL itself (Lightning Web Security), but this page runs on its own
+    Visualforce origin, so it can.
+    Nothing is stored: the bytes live only in this frame until the modal closes.
+-->
+<apex:page controller="TurboSignPdfViewerController" showHeader="false" sidebar="false" standardStylesheets="false" applyHtmlTag="false" applyBodyTag="false" docType="html-5.0">
+<html>
+<head>
+    <style>
+        html, body, iframe { margin: 0; width: 100%; height: 100%; border: 0; }
+    </style>
+</head>
+<!-- This org's own page origins, from Apex, in an attribute the script reads, so no merge field ever lands
+     inside the script. Visualforce HTML-encodes a merge field in an attribute itself; HTMLENCODE on top would
+     double-encode it and the script could no longer parse it. -->
+<body data-allowed-origins="{!allowedOriginsJson}">
+    <iframe id="pdf" title="Document preview"></iframe>
+    <script>
+        var current;
+        // The modal puts a fresh nonce on this page's URL for every render. Only a PDF carrying it is shown, so a
+        // PDF meant for another frame (or an earlier render) is never displayed here. Read in script, never as a
+        // Visualforce merge field, so the parameter can't inject markup.
+        var nonce = new URLSearchParams(window.location.search).get('nonce');
+        // Only a page of this org may hand the viewer a document: its Lightning host, its My Domain, or its
+        // Experience Cloud or Salesforce Sites host, as TurboSignPdfViewerController lists them. Another tenant's
+        // Salesforce page is never accepted. Compared exactly: an origin is scheme, host and port, lowercase.
+        var allowedOrigins = [];
+        try { allowedOrigins = JSON.parse(document.body.getAttribute('data-allowed-origins') || '[]'); } catch (err) { allowedOrigins = []; }
+        function fromThisOrg(origin, allowed) {
+            return Array.isArray(allowed) && typeof origin === 'string' && allowed.indexOf(origin) !== -1;
+        }
+        window.addEventListener('message', function (e) {
+            if (e.source !== window.parent || !fromThisOrg(e.origin, allowedOrigins)) return;
+            if (!e.data || e.data.type !== 'turbosign-pdf' || !(e.data.blob instanceof Blob)) return;
+            if (!nonce || e.data.nonce !== nonce) return;
+            // A browser set to download PDFs (pdfViewerEnabled false) would leave this frame blank, so the modal is
+            // told the PDF can't be shown here and offers Open in a new tab. A browser that doesn't report it is
+            // assumed to show PDFs; the modal's timeout still catches one that doesn't.
+            if (navigator.pdfViewerEnabled === false) {
+                window.parent.postMessage({ type: 'turbosign-pdf-viewer-unsupported', nonce: nonce }, e.origin);
+                return;
+            }
+            if (current) URL.revokeObjectURL(current);
+            // Re-typed as a PDF: a blob: URL runs on this page's origin, so a posted HTML Blob must never be loaded as HTML.
+            current = URL.createObjectURL(new Blob([e.data.blob], { type: 'application/pdf' }));
+            var frame = document.getElementById('pdf');
+            frame.title = e.data.name || 'Document preview';
+            // Open on the page itself at full width; the thumbnail rail would take a third of the modal.
+            frame.src = current + '#navpanes=0&view=FitH';
+            // Tell the modal the document is on screen, or it shows an error after a while instead of a blank frame.
+            window.parent.postMessage({ type: 'turbosign-pdf-viewer-shown', nonce: nonce }, e.origin);
+        });
+        // Tell the modal it can send the document. The message carries only the nonce the modal itself chose, so
+        // any target origin is fine; the modal reads this page's origin from it and posts the PDF to that origin only.
+        window.parent.postMessage({ type: 'turbosign-pdf-viewer-ready', nonce: nonce }, '*');
+    </script>
+</body>
+</html>
+</apex:page>

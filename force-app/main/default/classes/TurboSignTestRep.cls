@@ -6,6 +6,8 @@
  */
 @IsTest
 public class TurboSignTestRep {
+    public class NoRepProfileException extends Exception {}
+
     private static User rep;
 
     public static User user() {
@@ -37,12 +39,19 @@ public class TurboSignTestRep {
      * User, Solution Manager, Minimum Access, and Read Only, which can't edit tasks).
      */
     public static Id standardUserProfileId() {
-        return [SELECT ProfileId FROM PermissionSet
+        // Ordered so every run picks the same profile if more than one matches.
+        List<PermissionSet> matches = [SELECT ProfileId FROM PermissionSet
             WHERE IsOwnedByProfile = true AND IsCustom = false
             AND Profile.UserType = 'Standard' AND Profile.UserLicense.LicenseDefinitionKey = 'SFDC'
             AND PermissionsModifyAllData = false AND PermissionsViewAllData = false
             AND PermissionsApiEnabled = true AND PermissionsEditTask = true AND PermissionsActivateContract = false
             AND PermissionsImportLeads = false AND PermissionsManageSolutions = false
-            LIMIT 1].ProfileId;
+            ORDER BY Profile.CreatedDate, ProfileId LIMIT 1];
+        if (matches.isEmpty()) {
+            throw new NoRepProfileException('TurboSignTestRep: no Standard User profile found (a standard, non-admin '
+                + 'Salesforce-license profile with API Enabled and Edit Tasks that is not Contract Manager, Marketing '
+                + 'User or Solution Manager). The access tests need one to create a rep.');
+        }
+        return matches[0].ProfileId;
     }
 }
