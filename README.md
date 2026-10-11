@@ -24,6 +24,7 @@ send a document for e-signature through TurboSign from a Salesforce record and s
 full signature lifecycle written back onto that record.
 
 **Install v1.1.0:** [Production or Developer Edition](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tbm000000o8LlAAI) • [Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tbm000000o8LlAAI)
+Saving signed files back to Salesforce (new in 1.1.0) needs a TurboDocx update that is rolling out this week.
 Full admin guide: [TurboSign for Salesforce docs](https://docs.turbodocx.com/docs/Integrations/turbosign-for-salesforce).
 
 ## Connecting to TurboDocx
@@ -101,15 +102,6 @@ needs permission to install packages (System Administrator).
 - `unpackaged/`: example configuration records used by the Apex tests. They are deployed next to the package for testing and never ship to customers.
 - `config/project-scratch-def.json`: scratch org definition for development.
 
-## 🌐 Explore the TurboDocx Ecosystem
-
-| Package | Links | Description |
-|---------|-------|-------------|
-| TurboDocx SDKs | [![GitHub](https://img.shields.io/github/stars/turbodocx/sdk?style=social)](https://github.com/turbodocx/sdk) | Official SDKs for JavaScript, Python, PHP, Go, Java and Ruby |
-| @turbodocx/html-to-docx | [![npm](https://img.shields.io/npm/v/@turbodocx/html-to-docx?logo=npm&logoColor=white&label=npm)](https://www.npmjs.com/package/@turbodocx/html-to-docx) [![GitHub](https://img.shields.io/github/stars/turbodocx/html-to-docx?style=social)](https://github.com/turbodocx/html-to-docx) | Convert HTML to DOCX with the fastest JavaScript library |
-| n8n-nodes-turbodocx | [![npm](https://img.shields.io/npm/v/@turbodocx/n8n-nodes-turbodocx?logo=npm&logoColor=white&label=npm)](https://www.npmjs.com/package/@turbodocx/n8n-nodes-turbodocx) [![GitHub](https://img.shields.io/github/stars/turbodocx/n8n-nodes-turbodocx?style=social)](https://github.com/turbodocx/n8n-nodes-turbodocx) | n8n community node for TurboDocx API & TurboSign |
-| TurboDocx Writer | [![AppSource](https://img.shields.io/badge/Microsoft-AppSource-blue?logo=microsoft)](https://appsource.microsoft.com/en-us/product/office/WA200007397) | Official Microsoft Word add-in for document automation |
-
 ## Development
 
 ```bash
@@ -124,6 +116,15 @@ Lightning web component tests run locally with Jest: `npm install`, then `npm te
 ## Contributing
 
 Issues and pull requests are welcome. Please include Apex tests with any change; the package must keep at least 75% code coverage.
+
+## 🌐 Explore the TurboDocx Ecosystem
+
+| Package | Links | Description |
+|---------|-------|-------------|
+| [TurboDocx SDKs](https://github.com/TurboDocx/SDK) | [![GitHub](https://img.shields.io/github/stars/turbodocx/sdk?style=social&label=Stars)](https://github.com/turbodocx/sdk) | Official SDKs for JavaScript, Python, PHP, Go, Java and Ruby |
+| [@turbodocx/html-to-docx](https://github.com/TurboDocx/html-to-docx) | [![npm](https://img.shields.io/npm/v/@turbodocx/html-to-docx?logo=npm&logoColor=white&label=npm)](https://www.npmjs.com/package/@turbodocx/html-to-docx) [![GitHub](https://img.shields.io/github/stars/turbodocx/html-to-docx?style=social&label=Stars)](https://github.com/turbodocx/html-to-docx) | Convert HTML to DOCX with the fastest JavaScript library |
+| [n8n-nodes-turbodocx](https://github.com/TurboDocx/n8n-nodes-turbodocx) | [![npm](https://img.shields.io/npm/v/@turbodocx/n8n-nodes-turbodocx?logo=npm&logoColor=white&label=npm)](https://www.npmjs.com/package/@turbodocx/n8n-nodes-turbodocx) [![GitHub](https://img.shields.io/github/stars/turbodocx/n8n-nodes-turbodocx?style=social&label=Stars)](https://github.com/turbodocx/n8n-nodes-turbodocx) | n8n community node for TurboDocx API & TurboSign |
+| [TurboDocx Writer](https://appsource.microsoft.com/en-us/product/office/WA200007397) | [![AppSource](https://img.shields.io/badge/Microsoft-AppSource-blue?logo=microsoft)](https://appsource.microsoft.com/en-us/product/office/WA200007397) | Official Microsoft Word add-in for document automation |
 
 ## License
 
