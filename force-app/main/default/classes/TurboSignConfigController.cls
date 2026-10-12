@@ -19,29 +19,27 @@ public with sharing class TurboSignConfigController {
     public static List<Object> previewPayload(Id recordId, String payloadJson) {
         List<Object> out = new List<Object>();
         Map<String, Object> p = (Map<String, Object>) JSON.deserializeUntyped(payloadJson);
-        List<Object> vars = listOf(p.get('variables'));
-        List<String> paths = new List<String>();
-        for (Object o : vars) {
-            String sf = (String) ((Map<String, Object>) o).get('sourceField');
-            if (String.isNotBlank(sf)) paths.add(sf);
-        }
-        Map<String, Object> vals = new Map<String, Object>();
-        if (recordId != null && !paths.isEmpty()) {
-            TurboSignFieldResolver.ResolveRequest rr = new TurboSignFieldResolver.ResolveRequest();
-            rr.recordId = recordId; rr.paths = paths;
-            vals = TurboSignFieldResolver.resolve(rr);
-        }
-        for (Object o : vars) {
+        String dateFormat = (String) p.get('dateFormat');
+        // The unsaved rows as in-memory mapping records, so the send's own resolve and formatting apply.
+        List<TurboSign_Variable_Mapping__mdt> maps = new List<TurboSign_Variable_Mapping__mdt>();
+        for (Object o : listOf(p.get('variables'))) {
             Map<String, Object> v = (Map<String, Object>) o;
-            String sf = (String) v.get('sourceField');
-            // Mirror the real send: when a mapped field resolves null, fall back to the default value.
-            Object resolved = String.isNotBlank(sf) ? vals.get(sf) : null;
-            Boolean fromField = resolved != null;
-            Object val = fromField ? resolved : v.get('defaultValue');
+            Object dv = v.get('defaultValue');
+            maps.add(new TurboSign_Variable_Mapping__mdt(
+                Placeholder__c = (String) v.get('placeholder'),
+                Source_Field_Path__c = (String) v.get('sourceField'),
+                Default_Value__c = dv == null ? null : String.valueOf(dv)));
+        }
+        Map<String, Object> vals = recordId == null
+            ? new Map<String, Object>()
+            : TurboSignRequestBuilder.resolveValues(recordId, maps, new Set<String>(), dateFormat);
+        for (TurboSign_Variable_Mapping__mdt m : maps) {
+            // Same text the send uses: the field's value, formatted, or the default when it resolves null.
+            Boolean fromField = String.isNotBlank(m.Source_Field_Path__c) && vals.get(m.Source_Field_Path__c) != null;
             out.add(new Map<String, Object>{
-                'placeholder' => v.get('placeholder'),
-                'value' => (val == null ? '' : String.valueOf(val)),
-                'source' => fromField ? sf : 'default value' });
+                'placeholder' => m.Placeholder__c,
+                'value' => TurboSignRequestBuilder.resolvedText(m, vals, null, dateFormat),
+                'source' => fromField ? m.Source_Field_Path__c : 'default value' });
         }
         return out;
     }
