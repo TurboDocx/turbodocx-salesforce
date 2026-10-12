@@ -2,7 +2,7 @@
   "packageDirectories": [
     {
       "versionName": "ver 1.1",
-      "versionNumber": "1.1.0.NEXT",
+      "versionNumber": "1.1.1.NEXT",
       "path": "force-app",
       "default": true,
       "package": "TurboSign for Salesforce",
@@ -22,6 +22,7 @@
     "TurboSign for Salesforce@1.0.0-1": "04tbm000000mtqDAAQ",
     "TurboSign for Salesforce@1.1.0-1": "04tbm000000nTNRAA2",
     "TurboSign for Salesforce@1.1.0-2": "04tbm000000nwUHAAY",
-    "TurboSign for Salesforce@1.1.0-4": "04tbm000000o8LlAAI"
+    "TurboSign for Salesforce@1.1.0-4": "04tbm000000o8LlAAI",
+    "TurboSign for Salesforce@1.1.1-1": "04tbm000000oqUrAAI"
   }
 }

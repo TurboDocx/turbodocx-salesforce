@@ -23,7 +23,7 @@ Distributable Salesforce package (unlocked, no namespace for v1) that lets a sal
 send a document for e-signature through TurboSign from a Salesforce record and see the
 full signature lifecycle written back onto that record.
 
-**Install v1.1.0:** [Production or Developer Edition](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tbm000000o8LlAAI) • [Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tbm000000o8LlAAI)
+**Install v1.1.1:** [Production or Developer Edition](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tbm000000oqUrAAI) • [Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tbm000000oqUrAAI)
 Saving signed files back to Salesforce (new in 1.1.0) needs a TurboDocx update that is rolling out this week.
 Full admin guide: [TurboSign for Salesforce docs](https://docs.turbodocx.com/docs/Integrations/turbosign-for-salesforce).
 
@@ -71,8 +71,8 @@ Install methods:
 
 1. **Install link (unlocked package).** Any Salesforce admin opens the link, logs in, and picks
    **Install for Admins Only** (then assign the permission sets). Links for the latest version are on
-   the [Releases](https://github.com/TurboDocx/turbodocx-salesforce/releases) page; v1.1.0:
-   [production or Developer Edition](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tbm000000o8LlAAI), [sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tbm000000o8LlAAI). Upgrades install over the old version;
+   the [Releases](https://github.com/TurboDocx/turbodocx-salesforce/releases) page; v1.1.1:
+   [production or Developer Edition](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tbm000000oqUrAAI), [sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tbm000000oqUrAAI). Upgrades install over the old version;
    uninstall is one click.
 2. **Deploy from source.** A developer deploys with the Salesforce CLI:
 
