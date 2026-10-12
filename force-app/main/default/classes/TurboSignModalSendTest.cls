@@ -139,6 +139,30 @@ private class TurboSignModalSendTest {
         }
     }
 
+    // QA 1.1.0 (P6): when the failure's log row can't be saved either (the org over its storage limit, a
+    // validation rule, a user without access to the log), the rep must still get the answer, not a bare
+    // "Send failed". Here the log can't be saved because this user has no access to TurboSign_Log__c.
+    @IsTest
+    static void aLogRowThatCannotBeSavedStillReturnsTheAnswer() {
+        User noLogAccess = new User(
+            ProfileId = TurboSignTestRep.standardUserProfileId(),
+            Username = 'turbosign.nolog.' + UserInfo.getOrganizationId() + Math.abs(Crypto.getRandomInteger()) + '@example.com',
+            Email = 'turbosign.nolog@example.com', LastName = 'NoLog', Alias = 'tsnolog',
+            TimeZoneSidKey = 'America/New_York', LocaleSidKey = 'en_US',
+            EmailEncodingKey = 'UTF-8', LanguageLocaleKey = 'en_US');
+        insert noLogAccess;
+        System.runAs(noLogAccess) {
+            Test.startTest();
+            Map<String, Object> res = TurboSignQuickActionController.sendForSignature(null, 'Example_Agreement', '{not json');
+            Test.stopTest();
+
+            System.assertEquals(false, res.get('ok'), 'reported as failed');
+            System.assertEquals(false, res.get('maybeSent'), 'nothing reached TurboDocx');
+            System.assert(String.isNotBlank((String) res.get('message')), 'carries the reason');
+        }
+        System.assertEquals(0, [SELECT COUNT() FROM TurboSign_Log__c], 'the log row could not be saved');
+    }
+
     // Review: the rep modal lists configs through the rep controller, not the admin one.
     @IsTest
     static void repControllerListsConfigs() {

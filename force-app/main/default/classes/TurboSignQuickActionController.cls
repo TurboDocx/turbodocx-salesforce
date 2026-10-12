@@ -90,10 +90,16 @@ public with sharing class TurboSignQuickActionController {
             String stage = TurboSignService.stage;
             Boolean rejected = e instanceof TurboSignHttpClient.ApiException && e.getMessage().startsWith('4');
             Boolean maybeSent = stage == 'record' || (stage == 'send' && !rejected);
-            insert as user new TurboSign_Log__c(
-                Operation__c = 'TurboSignQuickActionController.sendForSignature',
-                Error_Message__c = (stage == null ? '' : '[' + stage + '] ') + e.getMessage(),
-                Occurred_On__c = System.now());
+            // Best effort: whatever failed the send (the org over its storage limit, a validation rule) can fail
+            // this row too, and the rep must still get the answer below, above all "may already have sent".
+            try {
+                insert as user new TurboSign_Log__c(
+                    Operation__c = 'TurboSignQuickActionController.sendForSignature',
+                    Error_Message__c = (stage == null ? '' : '[' + stage + '] ') + e.getMessage(),
+                    Occurred_On__c = System.now());
+            } catch (Exception logFailure) {
+                System.debug(LoggingLevel.ERROR, 'TurboSign: could not log a failed send: ' + logFailure.getMessage());
+            }
             String msg = maybeSent
                 ? 'TurboDocx may already have sent this document. Check before sending again. (' + e.getMessage() + ')'
                 : e.getMessage();

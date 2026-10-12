@@ -1,5 +1,5 @@
 import { LightningElement, track, wire } from 'lwc';
-import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import { literalToast } from 'c/turboSignToast';
 import LightningConfirm from 'lightning/confirm';
 import { refreshApex } from '@salesforce/apex';
 import getTemplateOptions from '@salesforce/apex/TurboSignConfigController.getTemplateOptions';
@@ -167,7 +167,7 @@ export default class TurboSignConfigBuilder extends LightningElement {
     // recipient-role flag for signing tokens. isData/isSigning drive which controls the row shows.
     get tokenRows() {
         const roles = new Set(this.recipients.map((r) => (r.role || '').trim()).filter(Boolean));
-        return this.tokens.map((t) => {
+        return this.tokens.map((t, i) => {
             const isData = t.kind === KIND_DATA;
             const s = this.splitPath(t.sourceField);
             const roleMissing = !!(!isData && t.role && !roles.has(t.role));
@@ -187,7 +187,8 @@ export default class TurboSignConfigBuilder extends LightningElement {
                 canBeOptional: !ALWAYS_REQUIRED.has(t.kind),
                 srcRel: s.rel, srcField: s.field, srcFieldOptions: this.fieldOptionsForRel(s.rel),
                 roleMissing,
-                statusIcon: icon, statusVariant: variant, statusTitle: title
+                statusIcon: icon, statusVariant: variant, statusTitle: title,
+                removeLabel: `Remove token ${(t.token || '').trim() || i + 1}`
             };
         });
     }
@@ -257,7 +258,8 @@ export default class TurboSignConfigBuilder extends LightningElement {
         return this.recipients.map((r, i) => ({
             ...r, position: i + 1, isFixed: !!r.fixed, required: r.required !== false,
             isFirst: i === 0, isLast: i === last,
-            upLabel: `Move signer ${i + 1} up`, downLabel: `Move signer ${i + 1} down`
+            upLabel: `Move signer ${i + 1} up`, downLabel: `Move signer ${i + 1} down`,
+            removeLabel: `Remove signer ${i + 1}`
         }));
     }
 
@@ -315,8 +317,15 @@ export default class TurboSignConfigBuilder extends LightningElement {
             isText: s.type === 'text',
             isField: s.type === 'field',
             isDate: s.type === 'date',
-            fieldLabel: s.type === 'field' ? this.labelForPath(s.value) : ''
+            fieldLabel: s.type === 'field' ? this.labelForPath(s.value) : '',
+            removeLabel: `Remove ${this.docSegmentName(s)} from the document name`
         }));
+    }
+    // How a remove button names a document-name piece: text by its words, a field by its path.
+    docSegmentName(s) {
+        if (s.type === 'date') return 'the date';
+        if (s.type === 'text') return s.value ? `"${s.value}"` : 'empty text';
+        return this.labelForPath(s.value);
     }
     get hasDocDate() { return this.docNameSegments.some((s) => s.type === 'date'); }
     get hasDocSegments() { return this.docNameSegments.length > 0; }
@@ -792,5 +801,5 @@ export default class TurboSignConfigBuilder extends LightningElement {
         return 'Pending';
     }
 
-    toast(title, message, variant) { this.dispatchEvent(new ShowToastEvent({ title, message, variant })); }
+    toast(title, message, variant) { this.dispatchEvent(literalToast({ title, message, variant })); }
 }
