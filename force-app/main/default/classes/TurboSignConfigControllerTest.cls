@@ -228,6 +228,24 @@ private class TurboSignConfigControllerTest {
         System.assertEquals('Fallback text', byPh.get('{Desc}'), 'a mapped field that resolves null falls back to the default');
     }
 
+    // QA 1.1.0 (P4): Preview values must show what the send will put in the document. A date showed raw
+    // ("2026-08-05 00:00:00") while the send used the user's locale or the Date Format pattern.
+    @IsTest
+    static void previewPayloadFormatsDatesLikeTheSend() {
+        Opportunity o = new Opportunity(Name = 'Opp', StageName = 'Prospecting', CloseDate = Date.newInstance(2026, 8, 5));
+        insert o;
+        String vars = '"variables":[{"placeholder":"{EffectiveDate}","sourceField":"CloseDate"}]';
+
+        List<Object> localized = TurboSignConfigController.previewPayload(o.Id, '{' + vars + '}');
+        System.assertEquals(Date.newInstance(2026, 8, 5).format(), ((Map<String, Object>) localized[0]).get('value'),
+            'with no Date Format, a date follows the user\'s locale, as the send does');
+
+        List<Object> patterned = TurboSignConfigController.previewPayload(o.Id, '{' + vars + ',"dateFormat":"MMMM d, yyyy"}');
+        System.assertEquals('August 5, 2026', ((Map<String, Object>) patterned[0]).get('value'),
+            'with a Date Format, a date follows that pattern, as the send does');
+        System.assertEquals('CloseDate', ((Map<String, Object>) patterned[0]).get('source'), 'still shows where it came from');
+    }
+
     @IsTest
     static void buildMetadataRecordsSkipsEmptyRows() {
         // Rows with the identifying key absent (placeholder/role/anchor) must not persist a "null" junk record.

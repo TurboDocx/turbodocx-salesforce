@@ -145,19 +145,28 @@ public with sharing class TurboSignRequestBuilder {
             SELECT Anchor__c, Field_Type__c, Recipient_Role_Label__c, Width__c, Height__c, Placement__c, Required__c
             FROM TurboSign_Field_Rule__mdt WHERE Config__r.DeveloperName = :configDeveloperName AND Active__c = true];
 
-        Set<String> paths = new Set<String>();
-        for (TurboSign_Variable_Mapping__mdt m : r.maps) if (String.isNotBlank(m.Source_Field_Path__c)) paths.add(m.Source_Field_Path__c);
+        Set<String> recipientPaths = new Set<String>();
         for (TurboSign_Recipient_Rule__mdt rec : r.recRules) {
-            if (String.isNotBlank(rec.Name_Field_Path__c)) paths.add(rec.Name_Field_Path__c);
-            if (String.isNotBlank(rec.Email_Field_Path__c)) paths.add(rec.Email_Field_Path__c);
+            if (String.isNotBlank(rec.Name_Field_Path__c)) recipientPaths.add(rec.Name_Field_Path__c);
+            if (String.isNotBlank(rec.Email_Field_Path__c)) recipientPaths.add(rec.Email_Field_Path__c);
         }
-        if (!paths.isEmpty()) {
-            TurboSignFieldResolver.ResolveRequest rr = new TurboSignFieldResolver.ResolveRequest();
-            rr.recordId = recordId; rr.paths = new List<String>(paths);
-            rr.formatPaths = nativeFormatPaths(recordId.getSObjectType(), r.maps, String.isNotBlank(cfg.Date_Format__c));
-            r.vals = TurboSignFieldResolver.resolve(rr);
-        }
+        r.vals = resolveValues(recordId, r.maps, recipientPaths, cfg.Date_Format__c);
         return r;
+    }
+
+    /**
+     * Reads the mappings' fields (plus extraPaths) from the record the way a send does: numbers and dates
+     * come back localized by SOQL FORMAT(), except dates when a Date Format pattern is set (resolvedText
+     * applies it). Also backs the builder's Preview values, so the preview shows what a send would.
+     */
+    public static Map<String, Object> resolveValues(Id recordId, List<TurboSign_Variable_Mapping__mdt> maps, Set<String> extraPaths, String dateFormat) {
+        Set<String> paths = new Set<String>(extraPaths);
+        for (TurboSign_Variable_Mapping__mdt m : maps) if (String.isNotBlank(m.Source_Field_Path__c)) paths.add(m.Source_Field_Path__c);
+        if (paths.isEmpty()) return new Map<String, Object>();
+        TurboSignFieldResolver.ResolveRequest rr = new TurboSignFieldResolver.ResolveRequest();
+        rr.recordId = recordId; rr.paths = new List<String>(paths);
+        rr.formatPaths = nativeFormatPaths(recordId.getSObjectType(), maps, String.isNotBlank(dateFormat));
+        return TurboSignFieldResolver.resolve(rr);
     }
 
     /**
@@ -166,7 +175,7 @@ public with sharing class TurboSignRequestBuilder {
      * arrive localized too, UNLESS the config sets a Date_Format__c pattern — then they come back raw and
      * we apply that pattern here so every date in the document follows the customer's chosen style.
      */
-    private static String resolvedText(TurboSign_Variable_Mapping__mdt m, Map<String, Object> vals, Map<String, String> overrides, String dateFormat) {
+    public static String resolvedText(TurboSign_Variable_Mapping__mdt m, Map<String, Object> vals, Map<String, String> overrides, String dateFormat) {
         if (overrides != null && overrides.containsKey(m.Placeholder__c)) {
             return overrides.get(m.Placeholder__c);
         }
