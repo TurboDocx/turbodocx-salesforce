@@ -1,5 +1,5 @@
 import { LightningElement, api, wire } from 'lwc';
-import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import { literalToast } from 'c/turboSignToast';
 import { CloseActionScreenEvent } from 'lightning/actions';
 import sendForSignature from '@salesforce/apex/TurboSignQuickActionController.sendForSignature';
 import previewForSignature from '@salesforce/apex/TurboSignQuickActionController.previewForSignature';
@@ -426,7 +426,7 @@ export default class TurboSignSendModal extends LightningElement {
                 overridesJson: this.buildOverrides()
             });
             if (!res || !res.ok) {
-                this.dispatchEvent(new ShowToastEvent({
+                this.dispatchEvent(literalToast({
                     title: res && res.maybeSent ? 'Check before sending again' : 'Send failed',
                     message: (res && res.message) || 'The document could not be sent. Try again.',
                     variant: res && res.maybeSent ? 'warning' : 'error',
@@ -436,7 +436,7 @@ export default class TurboSignSendModal extends LightningElement {
             }
             // Before close(): the TurboSign Signatures panel on this record reloads on this message.
             publish(this.messageContext, ENVELOPE_SENT, { recordId: this.recordId, envelopeId: res.envelopeId });
-            this.dispatchEvent(new ShowToastEvent({
+            this.dispatchEvent(literalToast({
                 title: 'Sent for signature',
                 message: `${this.documentName} is on its way to the signers. It will appear under TurboSign Signatures on this record.`,
                 variant: 'success'
@@ -444,7 +444,7 @@ export default class TurboSignSendModal extends LightningElement {
             this.close();
         } catch (e) {
             const msg = (e && e.body && e.body.message) ? e.body.message : 'The document could not be sent. Try again.';
-            this.dispatchEvent(new ShowToastEvent({ title: 'Send failed', message: msg, variant: 'error' }));
+            this.dispatchEvent(literalToast({ title: 'Send failed', message: msg, variant: 'error' }));
         } finally {
             this.sending = false;
         }

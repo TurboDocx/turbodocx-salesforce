@@ -2,6 +2,7 @@ import { createElement } from 'lwc';
 import TurboSignEnvelopePanel from 'c/turboSignEnvelopePanel';
 import getEnvelopes from '@salesforce/apex/TurboSignQuickActionController.getEnvelopes';
 import syncEnvelope from '@salesforce/apex/TurboSignRecipientSync.syncEnvelope';
+import remind from '@salesforce/apex/TurboSignQuickActionController.remind';
 import { refreshApex } from '@salesforce/apex';
 import { subscribe, unsubscribe, APPLICATION_SCOPE } from 'lightning/messageService';
 import ENVELOPE_SENT from '@salesforce/messageChannel/TurboSign_Envelope_Sent__c';
@@ -49,6 +50,19 @@ describe('c-turbo-sign-envelope-panel', () => {
     });
 
     describe('Remind and Void', () => {
+        it('shows a Remind error with {braces} as written', async () => {
+            remind.mockRejectedValue({ body: { message: 'Signer {signer_2} already signed.' } });
+            const el = await mount();
+            getEnvelopes.emit([envelope('a01', 'sent')]);
+            await flush();
+            const toasts = [];
+            el.addEventListener('lightning__showtoast', (e) => toasts.push(e.detail));
+            [...el.shadowRoot.querySelectorAll('lightning-button[data-id="a01"]')].find((b) => b.label === 'Remind').click();
+            await flush();
+            const shown = toasts.map((t) => t.message.replace(/\{([^}]*)\}/g, (m, k) => ((t.messageData || [])[k] ?? '')));
+            expect(shown).toEqual(['Signer {signer_2} already signed.']);
+        });
+
         it('are offered on a document still out for signature', async () => {
             const el = await mount();
             getEnvelopes.emit([envelope('a01', 'sent')]);
