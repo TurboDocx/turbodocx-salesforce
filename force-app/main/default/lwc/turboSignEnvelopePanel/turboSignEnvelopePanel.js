@@ -1,6 +1,6 @@
 import { LightningElement, api, wire } from 'lwc';
 import { refreshApex } from '@salesforce/apex';
-import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import { literalToast } from 'c/turboSignToast';
 import getEnvelopes from '@salesforce/apex/TurboSignQuickActionController.getEnvelopes';
 import remind from '@salesforce/apex/TurboSignQuickActionController.remind';
 import voidEnvelope from '@salesforce/apex/TurboSignQuickActionController.voidEnvelope';
@@ -141,7 +141,7 @@ export default class TurboSignEnvelopePanel extends LightningElement {
                 // Still best-effort, but never silent: a missing permission or a 401 would otherwise
                 // leave stale counts with no explanation.
                 const reason = failed[0].reason && failed[0].reason.body && failed[0].reason.body.message;
-                this.dispatchEvent(new ShowToastEvent({
+                this.dispatchEvent(literalToast({
                     title: `Couldn't refresh ${failed.length} of ${results.length} signature status${results.length === 1 ? '' : 'es'}`,
                     message: reason || 'Try again, or ask your admin to check the TurboDocx connection.',
                     variant: 'warning'
@@ -198,6 +198,6 @@ export default class TurboSignEnvelopePanel extends LightningElement {
         return (e && e.body && e.body.message) ? e.body.message : 'Something went wrong. Try again.';
     }
     toast(title, message, variant) {
-        this.dispatchEvent(new ShowToastEvent({ title, message, variant }));
+        this.dispatchEvent(literalToast({ title, message, variant }));
     }
 }
