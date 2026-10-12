@@ -24,6 +24,11 @@ jest.mock('@salesforce/apex/TurboSignConfigController.deactivateConfig', () => (
 jest.mock('@salesforce/apex/TurboSignConfigController.getConfigDeployStatus', () => ({ default: jest.fn() }), { virtual: true });
 
 const TOAST_EVENT = 'lightning__showtoast';
+// What the user reads: Salesforce fills {0}, {1}… from messageData and drops any other {…} in the message.
+const shown = (toast) => toast.message.replace(/\{([^}]*)\}/g, (m, k) => {
+    const data = toast.messageData || [];
+    return /^\d+$/.test(k) && data[k] !== undefined ? String(data[k]) : '';
+});
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
 async function mount() {
@@ -78,8 +83,61 @@ describe('c-turbo-sign-config-builder', () => {
         jest.useRealTimers();
         await flush();
         expect(toasts).toHaveLength(1);
-        expect(toasts[0].message).not.toMatch(/loading it/i);
-        expect(toasts[0].message).toMatch(/redeploy its records with Active set to true, or recreate it/i);
+        expect(shown(toasts[0])).not.toMatch(/loading it/i);
+        expect(shown(toasts[0])).toMatch(/redeploy its records with Active set to true, or recreate it/i);
+    });
+
+    it('shows an Apex error with {braces} as written', async () => {
+        getConfig.mockRejectedValue({ body: { message: 'Token {ClientName} has no source field.' } });
+        const el = await mount();
+        const toasts = [];
+        el.addEventListener(TOAST_EVENT, (e) => toasts.push(e.detail));
+        listConfigs.emit([{ label: 'Example Agreement', value: 'Example_Agreement' }]);
+        await flush();
+        el.shadowRoot.querySelector('lightning-combobox').dispatchEvent(new CustomEvent('change', { detail: { value: 'Example_Agreement' } }));
+        await flush();
+        await flush();
+        expect(toasts.map(shown)).toContain('Token {ClientName} has no source field.');
+    });
+
+    // Screen readers (and test tools) need each remove button to say what it removes; they were all "Remove".
+    it('names every remove button after what it removes', async () => {
+        const el = await mount();
+        const click = (label) => [...el.shadowRoot.querySelectorAll('lightning-button')].find((b) => b.label === label).click();
+        click('Text');
+        click('Date');
+        click('Text');
+        click('Text');
+        click('Add recipient');
+        click('Add token');
+        await flush();
+        const [lease, dash] = el.shadowRoot.querySelectorAll('input.ts-chip-input');
+        lease.value = 'Lease - ';
+        lease.dispatchEvent(new CustomEvent('input'));
+        dash.value = ' - ';
+        dash.dispatchEvent(new CustomEvent('input'));
+        const tokenInput = el.shadowRoot.querySelector('lightning-input[data-field="token"]');
+        tokenInput.dispatchEvent(new CustomEvent('change', { detail: { value: '{sig}' } }));
+        await flush();
+        const names = [...el.shadowRoot.querySelectorAll('lightning-button-icon')]
+            .map((b) => b.alternativeText)
+            .filter((t) => /^Remove/.test(t));
+        expect(names).toEqual([
+            'Remove "Lease - " from the document name',
+            'Remove the date from the document name',
+            'Remove " - " from the document name',
+            'Remove empty text from the document name',
+            'Remove signer 1',
+            'Remove signer 2',
+            'Remove token {sig}',
+            'Remove token 2'
+        ]);
+    });
+
+    it('asks for a record without an article that fits only some objects', async () => {
+        const el = await mount();
+        const hints = [...el.shadowRoot.querySelectorAll('p')].map((p) => p.textContent).filter((t) => /to see the values/.test(t));
+        expect(hints).toEqual(['Pick a record to see the values these mappings resolve to.']);
     });
 
     it('Date Format help says a blank format uses the sending user\'s locale', async () => {

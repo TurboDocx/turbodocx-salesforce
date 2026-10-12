@@ -91,7 +91,7 @@
                                     <template lwc:if={seg.isDate}>
                                         <span class="ts-chip-date"><lightning-icon icon-name="utility:date_input" size="xx-small"></lightning-icon>&nbsp;Date</span>
                                     </template>
-                                    <lightning-button-icon icon-name="utility:close" size="xx-small" variant="bare" data-id={seg.id} onclick={removeDocSegment} alternative-text="Remove"></lightning-button-icon>
+                                    <lightning-button-icon icon-name="utility:close" size="xx-small" variant="bare" data-id={seg.id} onclick={removeDocSegment} alternative-text={seg.removeLabel} title={seg.removeLabel}></lightning-button-icon>
                                 </span>
                             </template>
                         </div>
@@ -163,7 +163,7 @@
                         </div>
                         <div class="slds-col slds-grow-none slds-text-align_center" style="width:4rem"><lightning-input type="checkbox" label="Fixed value" variant="label-hidden" data-id={r.id} data-field="fixed" checked={r.isFixed} onchange={editRecipient}></lightning-input></div>
                         <div class="slds-col slds-grow-none slds-text-align_center" style="width:4.5rem"><lightning-input type="checkbox" label="Required" variant="label-hidden" data-id={r.id} data-field="required" checked={r.required} onchange={editRecipient}></lightning-input></div>
-                        <div class="slds-col slds-grow-none" style="width:2rem"><lightning-button-icon icon-name="utility:delete" data-collection="recipients" data-id={r.id} onclick={removeRow} alternative-text="Remove"></lightning-button-icon></div>
+                        <div class="slds-col slds-grow-none" style="width:2rem"><lightning-button-icon icon-name="utility:delete" data-collection="recipients" data-id={r.id} onclick={removeRow} alternative-text={r.removeLabel} title={r.removeLabel}></lightning-button-icon></div>
                     </div>
                 </template>
                 <lightning-button label="Add recipient" icon-name="utility:add" onclick={addRecipient} variant="base" class="slds-m-top_x-small"></lightning-button>
@@ -218,7 +218,7 @@
                                 </div>
                             </template>
                         </div>
-                        <div class="slds-col slds-grow-none" style="width:2rem"><lightning-button-icon icon-name="utility:delete" data-collection="tokens" data-id={t.id} onclick={removeRow} alternative-text="Remove"></lightning-button-icon></div>
+                        <div class="slds-col slds-grow-none" style="width:2rem"><lightning-button-icon icon-name="utility:delete" data-collection="tokens" data-id={t.id} onclick={removeRow} alternative-text={t.removeLabel} title={t.removeLabel}></lightning-button-icon></div>
                     </div>
                 </template>
                 <lightning-button label="Add token" icon-name="utility:add" onclick={addToken} variant="base"></lightning-button>
@@ -293,7 +293,7 @@
             <template lwc:if={sourceObject}>
                 <div class="slds-box slds-box_x-small slds-m-top_medium">
                     <p class="slds-text-title_caps slds-m-bottom_x-small">Test with a record</p>
-                    <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_x-small">Pick a {sourceObject} record to see the values these mappings resolve to.</p>
+                    <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_x-small">Pick a record to see the values these mappings resolve to.</p>
                     <div class="slds-grid slds-gutters slds-grid_vertical-align-end">
                         <div class="slds-col slds-size_3-of-4">
                             <lightning-record-picker label="Record" placeholder="Search records..." object-api-name={sourceObject} onchange={handleTestRecord}></lightning-record-picker>
