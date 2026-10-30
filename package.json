@@ -6,5 +6,10 @@
   },
   "devDependencies": {
     "@salesforce/sfdx-lwc-jest": "7.9.0"
+  },
+  "overrides": {
+    "@lwc/compiler@8": {
+      "@babel/core": "7.29.7"
+    }
   }
 }
