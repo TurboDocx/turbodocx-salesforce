@@ -13,7 +13,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![X](https://img.shields.io/badge/X-@TurboDocx-000?logo=x&logoColor=white)](https://twitter.com/TurboDocx)
 
-[Website](https://www.turbodocx.com) • [Documentation](https://docs.turbodocx.com/docs) • [Discord](https://discord.gg/NYKwz4BcpX) • [Blog](https://www.turbodocx.com/blog)
+[Website](https://www.turbodocx.com) • [TurboSign for Salesforce](https://www.turbodocx.com/integrations/salesforce-esignature) • [Documentation](https://docs.turbodocx.com/docs) • [Discord](https://discord.gg/NYKwz4BcpX) • [Blog](https://www.turbodocx.com/blog)
 
 </div>
 
@@ -26,6 +26,12 @@ full signature lifecycle written back onto that record.
 **Install v1.1.1:** [Production or Developer Edition](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tbm000000oqUrAAI) • [Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tbm000000oqUrAAI)
 Saving signed files back to Salesforce (new in 1.1.0) needs a TurboDocx update that is rolling out this week.
 Full admin guide: [TurboSign for Salesforce docs](https://docs.turbodocx.com/docs/Integrations/turbosign-for-salesforce).
+
+Product overview: [TurboSign for Salesforce overview and pricing](https://www.turbodocx.com/integrations/salesforce-esignature).
+
+Guides:
+- [Send documents for signature from Salesforce](https://www.turbodocx.com/guides/send-documents-for-signature-from-salesforce): step-by-step setup and sending
+- [Salesforce Flow e-signature](https://www.turbodocx.com/guides/salesforce-flow-e-signature): sending automatically with Flow
 
 ## Connecting to TurboDocx
 
